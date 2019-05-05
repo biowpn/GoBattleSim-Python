@@ -1,0 +1,2 @@
+
+# GoBattleSim Python API

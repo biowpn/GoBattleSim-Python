@@ -6,13 +6,13 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="gobattlesim",
-    version="0.0.3",
+    version="0.0.post3",
     author="Hank Meng",
     author_email="ymenghank@gmail.com",
     description="A Pokemon Go Battle Simulator engine with Python API",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/ymenghank/GoBattleSim",
+    url="https://github.com/ymenghank/GoBattleSim-Python",
     
     classifiers=[
         "Programming Language :: Python :: 3",

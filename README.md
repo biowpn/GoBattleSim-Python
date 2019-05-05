@@ -26,7 +26,7 @@ In the future, I'll add some sort of game master parser and other useful high-le
 For now, include gobattlesim engine as:
 
 ```
-include gobattlesim.engine
+import gobattlesim.engine
 ```
 
 If no error pops up, then you are good to go!

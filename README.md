@@ -41,7 +41,7 @@ This could be that your Python is 32-bit. I only compiled a 64-bit DLL in the pa
 
 ## Quick Start
 
-Some examples(examples/) have been given in the repo.
+Some [examples](examples/) have been given in the repo.
 
 
 ## Documentations

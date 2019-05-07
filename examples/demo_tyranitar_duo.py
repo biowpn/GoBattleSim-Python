@@ -2,15 +2,19 @@
 from gobattlesim.engine import *
 
 
+###########################################################################
+#          In this demo, we will be simulating a T4 Tyranitar Duo         #
+###########################################################################
 
-###########################################################################
-#   In this demo, we will be simulating a T4 Tyranitar Duo with Machamp   #
-###########################################################################
 
 # Set some parameters for game master
+# The number of types (only three types are concerned in this demo)
 set_num_types(3)
-set_effectiveness(0, 1, 1.6)    # Each type is an index
-set_effectiveness(0, 2, 1.6)    # In this demo, 0 = Fighting, 1 = Dark, 2 = Rock
+# Each type is an index
+# In this demo, 0 = Fighting, 1 = Dark, 2 = Rock
+# Set the relevant type effectiveness
+set_effectiveness(0, 1, 1.6)
+set_effectiveness(0, 2, 1.6)
 set_effectiveness(1, 0, 1/1.6)
 set_effectiveness(2, 0, 1/1.6)
 
@@ -37,70 +41,59 @@ pokemon_tyranitar.add_cmove(move_stone_edge)
 # Define party
 attacker_party = Party()
 for _ in range(6):
-    attacker_party.add_pokemon(pokemon_machamp)
+    attacker_party.add(pokemon_machamp)
 
 raid_boss_party = Party()
-raid_boss_party.add_pokemon(pokemon_tyranitar)
+raid_boss_party.add(pokemon_tyranitar)
 
 # Define player
 attacker = Player()
 attacker.set_team(1)
-attacker.add_party(attacker_party)
+attacker.add(attacker_party)
 
-# Use existing strategy 1 from the library: No dodge
-attacker.set_strategy(1)
-
-# Use existing strategy 2 from the library: Dodge all
-#attacker.set_strategy(2)
+# Use built-in strategy
+attacker.set_strategy(STRATEGY_ATTACKER_NO_DODGE)
+#attacker.set_strategy(STRATEGY_ATTACKER_DODGE_CHARGED)
+#attacker.set_strategy(STRATEGY_ATTACKER_DODGE_ALL)
 
 # Use custom strategy. Juicy!
-# Note: custom strategy causes significant performance drop.
-# The on_free callback is called when the subject Pokemon is free in battle.
-# Return specs of an Action in tuple (type, delay, value)
-def on_free_responder(strategy_input):
-    # Use fast move only with no delay whenever it is free
+# The my_on_free callback is called when the subject Pokemon is free.
+# Return specs of an Action as tuple (type, delay, value)
+def my_on_free(strategy_input):
+    # Use fast move only with no delay whenever free
     return atype_Fast, 0, 0
 
 my_strat = Strategy()
-my_strat.set_on_free(on_free_responder)
+my_strat.set_on_free(my_on_free)
 #attacker.set_custom_strategy(my_strat)
 
 raid_boss = Player()
 raid_boss.set_team(0)
-raid_boss.add_party(raid_boss_party)
-raid_boss.set_strategy(0)   # Exiting strategy 0 is defender strategy
+raid_boss.add(raid_boss_party)
+raid_boss.set_strategy(STRATEGY_DEFENDER)
 
 
 
 # Define battle
 battle = Battle()
-battle.add_player(raid_boss)    # Important: Raid boss must be added first (to be indexed 0).
-battle.add_player(attacker)
-battle.add_player(attacker)
+battle.add(raid_boss)    # Important: Raid boss must be added first (to be indexed 0).
+battle.add(attacker)
+battle.add(attacker)
 battle.set_time_limit(180000)
 battle.set_weather(-1)          # Since we didn't define which weather boost which types,
                                 # all types are default to be boosted in weather 0.
                                 # We set it to -1 to indicate no boost.
 battle.set_random_seed(1000)
 
-# Run one battle
-battle.init()   # Important: must init() before every new simulation
-battle.start()
-battle_outcome = battle.get_outcome(1)  # From team 1 (attacker) 's perspective
-print("Duration:", battle_outcome.duration)
-print("Win:", battle_outcome.win)
-print("TDO%:", battle_outcome.tdo_percent)
-print("#Deaths:", battle_outcome.num_deaths)
-print()
 
-# Run many battles
+# Run many simulations
 sum_duration, sum_wins, sum_tdo_percent, sum_deaths = 0, 0, 0, 0
 NUM_SIMS = 1000
 print(f"In {NUM_SIMS} battles:")
 for i in range(NUM_SIMS):
     battle.init()   # Important: must init() before every new simulation
     battle.start()
-    battle_outcome = battle.get_outcome(1)
+    battle_outcome = battle.get_outcome(1)    # From team 1 (attacker) 's perspective
     sum_duration += battle_outcome.duration
     sum_wins += 1 if battle_outcome.win else 0
     sum_tdo_percent += battle_outcome.tdo_percent
@@ -109,8 +102,5 @@ print("Average Duration:", sum_duration / NUM_SIMS)
 print("Win rate:", sum_wins / NUM_SIMS)
 print("Average TDO%:", sum_tdo_percent / NUM_SIMS)
 print("Average #Deaths:", sum_deaths / NUM_SIMS)
-
-
-
 
 

@@ -1,15 +1,15 @@
 
-# GoBattleSim Python API
+# GoBattleSim Engine with Python API
 
 A Pokemon Go Battle Simulator (GoBattleSim) with Python API.
 
 ## Getting Started
 
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes.
-
 ### Prerequisites
 
 64-bit Windows Operating System
+
+64-bit Python
 
 ### Installing
 
@@ -19,11 +19,11 @@ First, install the package using pip in command line window:
 pip install gobattlesim
 ```
 
-Right now, there is only the core <b>engine</b> sub-module available.
-It's enough to run any multi-player raid/gym battles, but you'd need to specify a lot of game parameters manually.
-In the future, I'll add some sort of game master parser and other useful high-level application functions (like find_best_counter()).
+<i>Right now, there is only the core `engine` sub-module available.
+It's enough to run any multi-player raid/gym battle, but you'd need to specify a lot of game parameters manually.
+In the future, I'll add some sort of game master parser and other useful high-level application functions (like find_best_counter()).</i>
 
-For now, include gobattlesim engine as:
+Then:
 
 ```
 import gobattlesim.engine
@@ -31,9 +31,22 @@ import gobattlesim.engine
 
 If no error pops up, then you are good to go!
 
-## Running the tests
+Some of the common errors include:
 
-A [demo.py](demo.py) has been given in the repo. Run that file and it should produce some battle results.
+```
+WindowsError: ... not a valid Win32 application
+```
+
+This could be that your Python is 32-bit. I only compiled a 64-bit DLL in the package. Therefore, again, 64-bit Python is required.
+
+## Quick Start
+
+Some examples(examples/) have been given in the repo.
+
+
+## Documentations
+
+Coming up!
 
 
 ## Contributing
@@ -42,13 +55,11 @@ A [demo.py](demo.py) has been given in the repo. Run that file and it should pro
 
 ## Versioning
 
-We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/ymenghank/GoBattleSim-Python). 
+We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/ymenghank/GoBattleSim-Python/tags). 
 
-## Authors
+## Author
 
 * **Hank Meng** - *Initial work* - [BIOWP](https://github.com/ymenghank)
-
-See also the list of [contributors](https://github.com/ymenghank/GoBattleSim-Python) who participated in this project.
 
 ## License
 

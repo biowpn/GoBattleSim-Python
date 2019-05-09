@@ -7,6 +7,10 @@ from gobattlesim.engine import *
 ###########################################################################
 
 
+# Set random seed first
+set_random_seed(1000)
+
+
 # Set some parameters for game master
 # The number of types (only three types are concerned in this demo)
 set_num_types(3)
@@ -20,70 +24,72 @@ set_effectiveness(2, 0, 1/1.6)
 
 
 # Define moves
-# (Type, Power, Energy, Duration, Damage Window)
-move_counter = Move(0, 12, 8, 900, 700)
-move_dynamic_punch = Move(0, 90, -50, 2700, 1200)
-move_bite = Move(1, 6, 4, 500, 300)
-move_stone_edge = Move(2, 100, -100, 2300, 700)
+move_counter = Move(poketype=0, power=12, energy=8, duration=900, dws=700)
+move_dynamic_punch = Move(poketype=0, power=90, energy=-50, duration=2700, dws=1200)
+move_bite = Move(poketype=1, power=6, energy=4, duration=500, dws=300)
+move_stone_edge = Move(poketype=2, power=100, energy=-100, duration=2300, dws=700)
 
 # Define Pokemon
-# (Type1, Type2, Attack, Defense, Max HP)
 # Here we use L40 perfect Machamp.
 # The three core stats have been calculated beforehand.
-pokemon_machamp = Pokemon(0, -1, 196.78470249, 136.72190173, 174)
-pokemon_machamp.add_fmove(move_counter)
-pokemon_machamp.add_cmove(move_dynamic_punch)
+pokemon_machamp = Pokemon(poketype1=0, attack=196.78470249, defense=136.72190173, max_hp=174)
+pokemon_machamp.fmove = move_counter
+pokemon_machamp.cmove = move_dynamic_punch
 
-pokemon_tyranitar = Pokemon(1, 2, 210.14000570774078, 175.3800047636032, 9000)
-pokemon_tyranitar.add_fmove(move_bite)
-pokemon_tyranitar.add_cmove(move_stone_edge)
+pokemon_tyranitar = Pokemon(poketype1=1, poketype2=2, attack=210.14000570774078, defense=175.3800047636032, max_hp=9000)
+pokemon_tyranitar.fmove = move_bite
+pokemon_tyranitar.cmove = move_stone_edge
 
 # Define party
-attacker_party = Party()
-for _ in range(6):
-    attacker_party.add(pokemon_machamp)
+attacker_party = Party(pokemon=[pokemon_machamp]*6)
 
-raid_boss_party = Party()
-raid_boss_party.add(pokemon_tyranitar)
+raid_boss_party = Party(pokemon=[pokemon_tyranitar])
+
 
 # Define player
-attacker = Player()
-attacker.set_team(1)
-attacker.add(attacker_party)
+attacker = Player(
+    parties=[attacker_party],
+    team = 1
+)
+
 
 # Use built-in strategy
-attacker.set_strategy(STRATEGY_ATTACKER_NO_DODGE)
-#attacker.set_strategy(STRATEGY_ATTACKER_DODGE_CHARGED)
-#attacker.set_strategy(STRATEGY_ATTACKER_DODGE_ALL)
+attacker.strategy = STRATEGY_ATTACKER_NO_DODGE
+#attacker.strategy = STRATEGY_ATTACKER_DODGE_CHARGED
+#attacker.strategy = STRATEGY_ATTACKER_DODGE_ALL
 
 # Use custom strategy. Juicy!
-# The my_on_free callback is called when the subject Pokemon is free.
-# Return specs of an Action as tuple (type, delay, value)
-def my_on_free(strategy_input):
-    # Use fast move only with no delay whenever free
-    return atype_Fast, 0, 0
+# The on_free callback is called when the subject Pokemon is free. It should return an Action object.
+def burst_charged_on_free(state):
+    # This is "Bursting" Charged Move strategy - use Charged Moves in a row after energy is full
+    if state.subject.energy + state.subject.cmove.energy >= 0:
+        # Has enough energy to use a Charged Move. But should it?
+        if state.subject.energy == 100 or state.subject_action.type == atype_Charged:
+            # If energy is full, or current action is a Charged Move (in bursting), use it
+            return Action(atype_Charged)
+    return Action(atype_Fast)
 
-my_strat = Strategy()
-my_strat.set_on_free(my_on_free)
-#attacker.set_custom_strategy(my_strat)
+# Note: Custom strategy has significant performance cost.
+#attacker.strategy = Strategy(on_free=burst_charged_on_free)
+
 
 raid_boss = Player()
-raid_boss.set_team(0)
-raid_boss.add(raid_boss_party)
-raid_boss.set_strategy(STRATEGY_DEFENDER)
+raid_boss.parties = [raid_boss_party]
+# Important: Raid Boss must be team 0
+raid_boss.team = 0
+# Defender strategy
+raid_boss.strategy = STRATEGY_DEFENDER
 
 
 
 # Define battle
 battle = Battle()
-battle.add(raid_boss)    # Important: Raid boss must be added first (to be indexed 0).
-battle.add(attacker)
-battle.add(attacker)
-battle.set_time_limit(180000)
-battle.set_weather(-1)          # Since we didn't define which weather boost which types,
+battle.players = [raid_boss, attacker, attacker]
+battle.time_limit = 180000
+battle.weather = -1             # Since we didn't define which weather boost which types,
                                 # all types are default to be boosted in weather 0.
                                 # We set it to -1 to indicate no boost.
-battle.set_random_seed(1000)
+
 
 
 # Run many simulations

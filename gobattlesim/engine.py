@@ -64,6 +64,26 @@ atype_Dodge = 4
 Functions
 '''
 
+lib.Global_set_random_seed.argtypes = [c_int]
+lib.Global_set_random_seed.restype = c_void_p
+def set_random_seed(seed):
+    '''
+    Set the random seed.
+    '''
+
+    lib.Global_set_random_seed(seed)
+
+
+lib.get_damage.argtypes = [c_void_p, c_void_p, c_void_p, c_int]
+lib.get_damage.restype = c_int
+def calc_damage(attacker, move, defender, weather):
+    '''
+    Calculate the damage value of attacker using move against defender in some weather.
+    '''
+
+    return lib.get_damage(attacker._addr, move._addr, defender._addr, weather)
+
+
 lib.GameMaster_set_num_types.argtypes = [c_int]
 lib.GameMaster_set_num_types.restype = c_void_p
 def set_num_types(num_types):
@@ -136,18 +156,33 @@ class Action(Structure):
                 ("time", c_int)]
 
 
-class StrategyInput(Structure):
+class _StrategyInput(Structure):
     _fields_ = [("time", c_int),
                 ("subject", c_void_p),
                 ("enemy", c_void_p),
                 ("subject_action", Action),
                 ("enemy_action", Action),
                 ("random_number", c_int),
-                ("battle_p", c_void_p),
-                ("calc_damage", CFUNCTYPE(c_int, c_void_p, c_void_p, c_void_p, c_void_p))]
+                ("weather", c_int)]
 
 
-EventResponder = CFUNCTYPE(c_void_p, StrategyInput, POINTER(Action))
+class StrategyInput:
+
+    def __init__(self, _strat_input):
+        self.time = _strat_input.time
+        self.subject = Pokemon(_strat_input.subject)
+        self.subject_action = _strat_input.subject_action
+        self.enemy = Pokemon(_strat_input.enemy)
+        self.enemy_action = _strat_input.enemy_action
+        self.random_number = _strat_input.random_number
+        self.weather = _strat_input.weather
+            
+
+
+
+EventResponder = CFUNCTYPE(c_void_p, _StrategyInput, POINTER(Action))
+
+
 
 
 
@@ -155,71 +190,149 @@ class Move:
 
     lib.Move_new.argtypes = [c_int, c_int, c_int, c_int, c_int]
     lib.Move_new.restype = c_void_p
-    def __init__(self, poketype, power, energy, duration, dws):
-        self.obj = lib.Move_new(poketype, power, energy, duration, dws)
+    def __init__(self, _src=None, **kwargs):
+        init_params = ["poketype", "power", "energy", "duration", "dws"]
+        if _src is not None:
+            if isinstance(_src, Move):
+                self.__dict__["_addr"] = _src._addr
+            else:
+                self.__dict__["_addr"] = _src
+            self.__dict__["_locked"] = True
+        else:
+            self.__dict__["_addr"] = lib.Move_new(
+                kwargs.get("poketype", 0),
+                kwargs.get("power", 0),
+                kwargs.get("energy", 0),
+                kwargs.get("duration", 0),
+                kwargs.get("dws", 0))
+            self.__dict__["_locked"] = False
+            for name, value in kwargs.items():
+                if name not in init_params:
+                    self.__setattr__(name, value)
 
 
     lib.Move_delete.argtypes = [c_void_p]
     lib.Move_delete.restype = c_void_p
     def __del__(self):
-        lib.Move_delete(self.obj)
+        if not self._locked:
+            lib.Move_delete(self._addr)
+
+
+    lib.Move_has_attr.argtypes = [c_void_p, c_char_p]
+    lib.Move_has_attr.restype = c_bool
+    def __hasattr__(self, name):
+        return lib.Move_has_attr(self._addr, name.encode('utf-8'))
+
+
+    lib.Move_get_attr.argtypes = [c_void_p, c_char_p]
+    lib.Move_get_attr.restype = c_int
+    def __getattr__(self, name):
+        return lib.Move_get_attr(self._addr, name.encode('utf-8'))
+
+
+    lib.Move_set_attr.argtypes = [c_void_p, c_char_p, c_int]
+    lib.Move_set_attr.restype = c_void_p
+    def __setattr__(self, name, value):
+        if self._locked:
+            raise Exception("Cannot modify locked instance")
+        lib.Move_set_attr(self._addr, name.encode('utf-8'), c_int(value))
+
 
 
 
 
 class Pokemon:
-
+        
     lib.Pokemon_new.argtypes = [c_int, c_int, c_double, c_double, c_int]
     lib.Pokemon_new.restype = c_void_p
-    def __init__(self, poketype1, poketype2, attack, defense, maxHP):
-        self.obj = lib.Pokemon_new(poketype1, poketype2, attack, defense, maxHP)
+    def __init__(self, _src=None, **kwargs):
+        init_params = ["poketype1", "poketype2", "attack", "defense", "max_hp"]
+        if _src is not None:
+            if isinstance(_src, Pokemon):
+                self.__dict__["_addr"] = _src._addr
+            else:
+                self.__dict__["_addr"] = _src
+            self.__dict__["_locked"] = True
+        else:
+            self.__dict__["_addr"] = lib.Pokemon_new(
+                kwargs.get("poketype1", -1),
+                kwargs.get("poketype2", -1),
+                kwargs.get("attack", 0),
+                kwargs.get("defense", 0),
+                kwargs.get("max_hp", 0))
+            self.__dict__["_locked"] = False
+            for name, value in kwargs.items():
+                if name not in init_params:
+                    self.__setattr__(name, value)
 
 
     lib.Pokemon_delete.argtypes = [c_void_p]
     lib.Pokemon_delete.restype = c_void_p
     def __del__(self):
-        lib.Pokemon_delete(self.obj)
+        if not self._locked:
+            lib.Pokemon_delete(self._addr)
 
-
-    lib.Pokemon_get_id.argtypes = [c_void_p]
-    lib.Pokemon_get_id.restype = c_int
-    def get_id(self):
-        '''
-        Get the interal id of the Pokemon.
-        Pokemon with the same id will be updated together in one Battle.update().
-        '''
-        
-        return lib.Pokemon_get_id(self.obj)
-
-
-    lib.Pokemon_set_types.argtypes = [c_void_p, c_int, c_int]
-    lib.Pokemon_set_types.restype = c_void_p
-    def set_types(self, type1, type2):
-        lib.Pokemon_delete(self.obj, type1, type2)
-
-
-    lib.Pokemon_set_stats.argtypes = [c_void_p, c_double, c_double, c_int]
-    lib.Pokemon_set_stats.restype = c_void_p
-    def set_stats(self, attack, defense, max_hp):
-        lib.Pokemon_set_stats(self.obj, c_double(attack), c_double(defense), c_int(max_hp))
+    lib.Pokemon_get_fmove.argtypes = [c_void_p, c_int]
+    lib.Pokemon_get_fmove.restype = c_void_p
     
-
     lib.Pokemon_add_fmove.argtypes = [c_void_p, c_void_p]
     lib.Pokemon_add_fmove.restype = c_void_p
-    def add_fmove(self, move):
-        lib.Pokemon_add_fmove(self.obj, move.obj)
-        
+
 
     lib.Pokemon_add_cmove.argtypes = [c_void_p, c_void_p]
     lib.Pokemon_add_cmove.restype = c_void_p
-    def add_cmove(self, move):
-        lib.Pokemon_add_cmove(self.obj, move.obj)
+
+    lib.Pokemon_get_cmove.argtypes = [c_void_p, c_int]
+    lib.Pokemon_get_cmove.restype = c_void_p
+
+    lib.Pokemon_erase_cmoves.argtypes = [c_void_p]
+    lib.Pokemon_erase_cmoves.restype = c_void_p
 
 
-    lib.Pokemon_set_immortal.argtypes = [c_void_p, c_bool]
-    lib.Pokemon_set_immortal.restype = c_void_p
-    def set_immortal(self, immortal):
-        lib.Pokemon_set_immortal(self.obj, immortal)
+    lib.Pokemon_has_attr.argtypes = [c_void_p, c_char_p]
+    lib.Pokemon_has_attr.restype = c_bool
+    def __hasattr__(self, name):
+        if name == "fmove" or name == "cmove" or name == "cmoves":
+            return True
+        return lib.Pokemon_has_attr(self._addr, name.encode('utf-8'))
+
+
+    lib.Pokemon_get_attr.argtypes = [c_void_p, c_char_p]
+    lib.Pokemon_get_attr.restype = c_double
+    def __getattr__(self, name):
+        if name == "fmove":
+            return Move(lib.Pokemon_get_fmove(self._addr, 0))
+        elif name == "cmove":
+            return Move(lib.Pokemon_get_cmove(self._addr, -1))
+        elif name == "cmoves":
+            cmoves = 0
+            for i in range(round(self.cmoves_count)):
+                cmoves.append(Move(lib.Pokemon_get_cmove(self._addr, i)))
+            return cmoves
+        else:
+            return lib.Pokemon_get_attr(self._addr, name.encode('utf-8'))
+
+
+    lib.Pokemon_set_attr.argtypes = [c_void_p, c_char_p, c_double]
+    lib.Pokemon_set_attr.restype = c_void_p
+    def __setattr__(self, name, value):
+        if self._locked:
+            raise Exception("Cannot modify locked instance")
+        if name == "fmove":
+            assert isinstance(value, Move)
+            lib.Pokemon_add_fmove(self._addr, value._addr)
+        elif name == "cmove":
+            assert isinstance(value, Move)
+            lib.Pokemon_erase_cmoves(self._addr)
+            lib.Pokemon_add_cmove(self._addr, value._addr)
+        elif name == "cmoves":
+            lib.Pokemon_erase_cmoves(self._addr)
+            for move in value:
+                assert isinstance(move, Move)
+                lib.Pokemon_add_cmove(self._addr, move._addr)
+        else:
+            lib.Pokemon_set_attr(self._addr, name.encode('utf-8'), c_double(value))
+
 
 
 
@@ -228,35 +341,80 @@ class Party:
 
     lib.Party_new.argtypes = []
     lib.Party_new.restype = c_void_p
-    def __init__(self):
-        self.obj = lib.Party_new()
+    def __init__(self, _src=None, **kwargs):
+        if _src is not None:
+            if isinstance(_src, Party):
+                self.__dict__["_addr"] = _src._addr
+            else:
+                self.__dict__["_addr"] = _src
+            self.__dict__["_locked"] = True
+        else:
+            self.__dict__["_addr"] = lib.Party_new()
+            self.__dict__["_locked"] = False
+        for name, value in kwargs.items():
+            self.__setattr__(name, value)
 
 
     lib.Party_delete.argtypes = [c_void_p]
     lib.Party_delete.restype = c_void_p
     def __del__(self):
-        lib.Party_delete(self.obj)
+        if not self._locked:
+            lib.Party_delete(self._addr)
 
+
+    lib.Party_get_pokemon.argtypes = [c_void_p, c_int]
+    lib.Party_get_pokemon.restype = c_void_p
 
     lib.Party_add_pokemon.argtypes = [c_void_p, c_void_p]
     lib.Party_add_pokemon.restype = c_void_p
+
+    lib.Party_erase_pokemon.argtypes = [c_void_p]
+    lib.Party_erase_pokemon.restype = c_void_p
+    
+    
     def add(self, pokemon):
         '''
         Add a Pokemon to the party.
         '''
         
-        lib.Party_add_pokemon(self.obj, pokemon.obj)
+        if self._locked:
+            raise Exception("Cannot modify locked instance")
+        lib.Party_add_pokemon(self._addr, pokemon._addr)
 
 
-    lib.Party_set_revive_policy.argtypes = [c_void_p, c_int]
-    lib.Party_set_revive_policy.restype = c_void_p
-    def set_revive_policy(self, revive_policy):
-        '''
-        Set the revive policy in terms of the number of times of revive.
-        0 means never revive; negative value means revive forver.
-        '''
-        
-        lib.Party_set_revive_policy(self.obj, revive_policy)
+    lib.Party_has_attr.argtypes = [c_void_p, c_char_p]
+    lib.Party_has_attr.restype = c_bool
+    def __hasattr__(self, name):
+        if name == "pokemon":
+            return True
+        return lib.Party_has_attr(self._addr, name.encode('utf-8'))
+
+
+    lib.Party_get_attr.argtypes = [c_void_p, c_char_p]
+    lib.Party_get_attr.restype = c_int    
+    def __getattr__(self, name):
+        if name == "pokemon":
+            pokemon_list = []
+            for i in range(round(self.pokemon_count)):
+                pokemon_list.append(Pokemon(lib.Party_get_pokemon(self._addr, i)))
+            return pokemon_list
+        else:
+            return lib.Party_get_attr(self._addr, name.encode('utf-8'))
+
+
+    lib.Party_set_attr.argtypes = [c_void_p, c_char_p, c_int]
+    lib.Party_set_attr.restype = c_void_p
+    def __setattr__(self, name, value):
+        if self._locked:
+            raise Exception("Cannot modify locked instance")
+        if name == "pokemon":
+            lib.Party_erase_pokemon(self._addr)
+            for pokemon in value:
+                assert isinstance(pokemon, Pokemon)
+                lib.Party_add_pokemon(self._addr, pokemon._addr)
+        else:
+            lib.Party_set_attr(self._addr, name.encode('utf-8'), value)
+
 
 
 
@@ -264,61 +422,105 @@ class Player:
 
     lib.Player_new.argtypes = []
     lib.Player_new.restype = c_void_p
-    def __init__(self):
-        self.obj = lib.Player_new()
+    def __init__(self, _src=None, **kwargs):
+        if _src is not None:
+            if isinstance(_src, Player):
+                self.__dict__["_addr"] = _src._addr
+            else:
+                self.__dict__["_addr"] = _src
+            self.__dict__["_locked"] = True
+        else:
+            self.__dict__["_addr"] = lib.Player_new()
+            self.__dict__["_locked"] = False
+        self.__dict__["_attack_multiplier"] = 1
+        for name, value in kwargs.items():
+            self.__setattr__(name, value)
 
 
     lib.Player_delete.argtypes = [c_void_p]
     lib.Player_delete.restype = c_void_p
     def __del__(self):
-        lib.Player_delete(self.obj)
+        if not self._locked:
+            lib.Player_delete(self._addr)
 
 
-    lib.Player_get_id.argtypes = [c_void_p]
-    lib.Player_get_id.restype = c_int
-    def get_id(self):
-        '''
-        Get the interal id of the player.
-        Players with the same id will be updated together in one Battle.update().
-        '''
-        
-        lib.Player_get_id(self.obj)
-
+    lib.Player_get_party.argtypes = [c_void_p, c_int]
+    lib.Player_get_party.restype = c_void_p
 
     lib.Player_add_party.argtypes = [c_void_p, c_void_p]
     lib.Player_add_party.restype = c_void_p
+
+    lib.Player_erase_parties.argtypes = [c_void_p]
+    lib.Player_erase_parties.restype = c_void_p
+
+    
     def add(self, party):
         '''
         Add a party to the player.
         '''
-        
-        lib.Player_add_party(self.obj, party.obj)
+        if self._locked:
+            raise Exception("Cannot modify locked instance")
+        lib.Player_add_party(self._addr, party._addr)
 
 
-    lib.Player_set_team.argtypes = [c_void_p, c_int]
-    lib.Player_set_team.restype = c_void_p
-    def set_team(self, team):
-        lib.Player_set_team(self.obj, team)
+
+    lib.Player_has_attr.argtypes = [c_void_p, c_char_p]
+    lib.Player_has_attr.restype = c_bool
+    def __hasattr__(self, name):
+        if name == "parties" or name == "strategy":
+            return True
+        return lib.Player_has_attr(self._addr, name.encode('utf-8'))
+
+
+    lib.Player_get_strategy.argtypes = [c_void_p]
+    lib.Player_get_strategy.restype = c_void_p
+
+    lib.Player_get_attr.argtypes = [c_void_p, c_char_p]
+    lib.Player_get_attr.restype = c_int    
+    def __getattr__(self, name):
+        if name == "parties":
+            party_list = []
+            for i in range(round(self.parties_count)):
+                party_list.append(Party(lib.Player_get_party(self._addr, i)))
+            return party_list
+        elif name == "attack_multiplier":
+            return self._attack_multiplier
+        elif name == "strategy":
+            return Strategy(lib.Player_get_strategy(self._addr))
+        else:
+            return lib.Player_get_attr(self._addr, name.encode('utf-8'))
 
 
     lib.Player_set_attack_multiplier.argtypes = [c_void_p, c_double]
     lib.Player_set_attack_multiplier.restype = c_void_p
-    def set_attack_multiplier(self, multiplier):
-        lib.Player_set_attack_multiplier(self.obj, multiplier)
-
 
     lib.Player_set_strategy.argtypes = [c_void_p, c_int]
     lib.Player_set_strategy.restype = c_void_p
-    def set_strategy(self, strategy_index):
-        lib.Player_set_strategy(self.obj, strategy_index)
-
 
     lib.Player_set_custom_strategy.argtypes = [c_void_p, c_void_p]
     lib.Player_set_custom_strategy.restype = c_void_p
-    def set_custom_strategy(self, strategy):
-        lib.Player_set_custom_strategy(self.obj, strategy.obj)
-
-
+    
+    lib.Player_set_attr.argtypes = [c_void_p, c_char_p, c_int]
+    lib.Player_set_attr.restype = c_void_p
+    def __setattr__(self, name, value):
+        if self._locked:
+            raise Exception("Cannot modify locked instance")
+        if name == "parties":
+            lib.Player_erase_parties(self._addr)
+            for party in value:
+                assert isinstance(party, Party)
+                lib.Player_add_party(self._addr, party._addr)
+        elif name == "attack_multiplier":
+            self._attack_multiplier = value
+            lib.Player_set_attack_multiplier(self._addr, c_double(value))
+        elif name == "strategy":
+            if isinstance(value, Strategy):
+                lib.Player_set_custom_strategy(self._addr, value._addr)
+            else:
+                lib.Player_set_strategy(self._addr, value)
+        else:
+            lib.Player_set_attr(self._addr, name.encode('utf-8'), value)
+    
 
         
 class Strategy:
@@ -327,11 +529,11 @@ class Strategy:
 
     @staticmethod
     def wrap(event_responder):
-        def event_responder_outer(t_si, t_action_p):
-            atype, delay, value = event_responder(t_si)
-            t_action_p[0].type = atype
-            t_action_p[0].delay = delay
-            t_action_p[0].value = value
+        def event_responder_outer(t_strat_input, t_action_p):
+            action = event_responder(StrategyInput(t_strat_input))
+            t_action_p[0].type = action.type
+            t_action_p[0].delay = action.delay
+            t_action_p[0].value = action.value
         t_er = EventResponder(event_responder_outer)
         Strategy.user_event_responders.append(t_er)
         return t_er
@@ -339,32 +541,46 @@ class Strategy:
 
     lib.Strategy_new.argtypes = []
     lib.Strategy_new.restype = c_void_p
-    def __init__(self):
-        self.obj = lib.Strategy_new()
+    def __init__(self, _src=None, **kwargs):
+        if _src is not None:
+            if isinstance(_src, Strategy):
+                self.__dict__["_addr"] = _src._addr
+            else:
+                self.__dict__["_addr"] = _src
+            self.__dict__["_locked"] = True
+        else:
+            self.__dict__["_addr"] = lib.Strategy_new()
+            self.__dict__["_locked"] = False
+        for name, value in kwargs.items():
+            self.__setattr__(name, value)
 
 
     lib.Strategy_delete.argtypes = [c_void_p]
     lib.Strategy_delete.restype = c_void_p
     def __del__(self):
-        lib.Strategy_delete(self.obj)
+        if not self._locked:
+            lib.Strategy_delete(self._addr)
 
 
     lib.Strategy_set_on_free.argtypes = [c_void_p, c_void_p]
     lib.Strategy_set_on_free.restype = c_void_p
-    def set_on_free(self, event_responder):
-        lib.Strategy_set_on_free(self.obj, Strategy.wrap(event_responder))
-
 
     lib.Strategy_set_on_clear.argtypes = [c_void_p, c_void_p]
     lib.Strategy_set_on_clear.restype = c_void_p
-    def set_on_clear(self, event_responder):
-        lib.Strategy_set_on_clear(self.obj, Strategy.wrap(event_responder))
-
 
     lib.Strategy_set_on_attack.argtypes = [c_void_p, c_void_p]
     lib.Strategy_set_on_attack.restype = c_void_p
-    def set_on_attack(self, event_responder):
-        lib.Strategy_set_on_attack(self.obj, Strategy.wrap(event_responder))
+    def __setattr__(self, name, value):
+        if name == "on_free":
+            lib.Strategy_set_on_free(self._addr, Strategy.wrap(value))
+        elif name == "on_clear":
+            lib.Strategy_set_on_clear(self._addr, Strategy.wrap(value))
+        elif name == "on_attack":
+            lib.Strategy_set_on_attack(self._addr, Strategy.wrap(value))
+        else:
+            raise AttributeError("Must be 'on_free' or 'on_clear' or 'on_attack'")
+            
+
 
 
 
@@ -372,24 +588,42 @@ class Battle:
 
     lib.Battle_new.argtypes = []
     lib.Battle_new.restype = c_void_p
-    def __init__(self):
-        self.obj = lib.Battle_new()
+    def __init__(self, _src=None, **kwargs):
+        if _src is not None:
+            if isinstance(_src, Battle):
+                self.__dict__["_addr"] = _src._addr
+            else:
+                self.__dict__["_addr"] = _src
+            self.__dict__["_locked"] = True
+        else:
+            self.__dict__["_addr"] = lib.Battle_new()
+            self.__dict__["_locked"] = False
+        for name, value in kwargs.items():
+            self.__setattr__(name, value)
 
 
     lib.Battle_delete.argtypes = [c_void_p]
     lib.Battle_delete.restype = c_void_p
     def __del__(self):
-        lib.Battle_delete(self.obj)
+        lib.Battle_delete(self._addr)
+
         
 
+    lib.Battle_get_player.argtypes = [c_void_p, c_int]
+    lib.Battle_get_player.restype = c_void_p
+    
     lib.Battle_add_player.argtypes = [c_void_p, c_void_p]
     lib.Battle_add_player.restype = c_void_p
+
+    lib.Battle_erase_players.argtypes = [c_void_p]
+    lib.Battle_erase_players.restype = c_void_p
+    
     def add(self, player):
         '''
         Add a player to the battle.
         '''
         
-        lib.Battle_add_player(self.obj, player.obj)
+        lib.Battle_add_player(self._addr, player._addr)
         
 
     lib.Battle_update_player.argtypes = [c_void_p, c_void_p]
@@ -402,29 +636,12 @@ class Battle:
         '''
 
         if isinstance(entity, Player):
-            lib.Battle_update_player(self.obj, entity.obj)
+            lib.Battle_update_player(self._addr, entity._addr)
         elif isinstance(entity, Pokemon):
-            lib.Battle_update_pokemon(self.obj, entity.obj)
+            lib.Battle_update_pokemon(self._addr, entity._addr)
         else:
             raise Exception("Unsupported type of entity")
 
-
-    lib.Battle_set_time_limit.argtypes = [c_void_p, c_int]
-    lib.Battle_set_time_limit.restype = c_void_p
-    def set_time_limit(self, time_limit):
-        lib.Battle_set_time_limit(self.obj, time_limit)
-
-
-    lib.Battle_set_weather.argtypes = [c_void_p, c_int]
-    lib.Battle_set_weather.restype = c_void_p
-    def set_weather(self, weather):
-        lib.Battle_set_weather(self.obj, weather)
-
-
-    lib.Battle_set_random_seed.argtypes = [c_void_p, c_int]
-    lib.Battle_set_random_seed.restype = c_void_p
-    def set_random_seed(self, seed):
-        lib.Battle_set_random_seed(self.obj, seed)
 
 
     lib.Battle_init.argtypes = [c_void_p]
@@ -434,7 +651,7 @@ class Battle:
         Initialize the battle.
         '''
         
-        lib.Battle_init(self.obj)
+        lib.Battle_init(self._addr)
 
 
     lib.Battle_start.argtypes = [c_void_p]
@@ -444,7 +661,7 @@ class Battle:
         Start a new simulation.
         '''
         
-        lib.Battle_start(self.obj)
+        lib.Battle_start(self._addr)
 
 
     lib.Battle_get_outcome.argtypes = [c_void_p, c_int, c_void_p]
@@ -455,9 +672,43 @@ class Battle:
         '''
         
         battle_outcome = BattleOutcome()
-        lib.Battle_get_outcome(self.obj, team, pointer(battle_outcome))
+        lib.Battle_get_outcome(self._addr, team, pointer(battle_outcome))
         return battle_outcome
-    
+
+
+
+    lib.Battle_has_attr.argtypes = [c_void_p, c_char_p]
+    lib.Battle_has_attr.restype = c_bool
+    def __hasattr__(self, name):
+        if name == "players":
+            return True
+        return lib.Battle_has_attr(self._addr, name.encode('utf-8'))
+
+
+    lib.Battle_get_attr.argtypes = [c_void_p, c_char_p]
+    lib.Battle_get_attr.restype = c_int    
+    def __getattr__(self, name):
+        if name == "players":
+            players_list = []
+            for i in range(round(self.players_count)):
+                players_list.append(Player(lib.Battle_get_player(self._addr, i)))
+            return players_list
+        else:
+            return lib.Battle_get_attr(self._addr, name.encode('utf-8'))
+
+
+    lib.Battle_set_attr.argtypes = [c_void_p, c_char_p, c_int]
+    lib.Battle_set_attr.restype = c_void_p
+    def __setattr__(self, name, value):
+        if self._locked:
+            raise Exception("Cannot modify locked instance")
+        if name == "players":
+            lib.Battle_erase_players(self._addr)
+            for player in value:
+                assert isinstance(player, Player)
+                lib.Battle_add_player(self._addr, player._addr)
+        else:
+            lib.Battle_set_attr(self._addr, name.encode('utf-8'), value)
 
 
 

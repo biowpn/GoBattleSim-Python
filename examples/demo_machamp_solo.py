@@ -77,21 +77,38 @@ battle.time_limit = 180000
 # Recall that we define 1 = Windy.
 battle.weather = 1
 
-# Run many simulations
-sum_duration, sum_wins, sum_tdo_percent, sum_deaths = 0, 0, 0, 0
-NUM_SIMS = 1000
-print(f"In {NUM_SIMS} battles:")
-for i in range(NUM_SIMS):
-    battle.init()   # Important: must init() before every new simulation
-    battle.start()
-    battle_outcome = battle.get_outcome(1)  # From team 1 (attacker) 's perspective
-    sum_duration += battle_outcome.duration
-    sum_wins += 1 if battle_outcome.win else 0
-    sum_tdo_percent += battle_outcome.tdo_percent
-    sum_deaths += battle_outcome.num_deaths
-print("Average Duration:", sum_duration / NUM_SIMS)
-print("Win rate:", sum_wins / NUM_SIMS)
-print("Average TDO%:", sum_tdo_percent / NUM_SIMS)
-print("Average #Deaths:", sum_deaths / NUM_SIMS)
+# Run one simulation with battle log
+battle.has_log = True
+battle.init()                           # Important: must init() before every new simulation
+battle.start()
+
+
+print("Time(s)", "Type", "Pokemon", sep='\t')
+for entry in battle.get_log():
+    print(entry.time / 1000,
+          ETYPE_NAMES[entry.type],
+          "Mewtwo" if entry.player == 1 else "Machamp",
+          sep='\t')
+
+
+pokemon_mewtwo = battle.players[1].parties[0].pokemon[0]
+pokemon_machamp = battle.players[0].parties[0].pokemon[0]
+
+print()
+print("The battle lasts", battle.outcome.duration / 1000, "seconds")
+print("Mewtwo deals", pokemon_mewtwo.tdo, "damage")
+print("When the battle ends, Mewtwo has", pokemon_mewtwo.hp, "HP left")
+print("Boss Machamp has", pokemon_machamp.hp, "HP left")
+
+
+
+
+
+
+
+
+
+
+    
 
 

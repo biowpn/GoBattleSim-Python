@@ -59,6 +59,17 @@ atype_Charged = 3
 atype_Dodge = 4
 
 
+etype_None = 0
+etype_Announce = 1
+etype_Free = 2
+etype_Fast = 3
+etype_Charged = 4
+etype_Dodge = 5
+etype_Enter = 6
+
+
+ETYPE_NAMES = dict([(globals()[k], k.split('_')[-1]) for k in globals() if k.startswith("etype_")])
+
 
 '''
 Functions
@@ -139,6 +150,17 @@ def set_parameter(name, value):
 '''
 Classes
 '''
+
+class TimelineEvent(Structure):
+    _fields_ = [("type", c_int),
+                ("time", c_int),
+                ("player", c_int),
+                ("value", c_int)]
+
+
+class TimelineEventNode(Structure):
+    _fields_ = [("next", c_void_p),
+                ("item", TimelineEvent)]
 
 
 class BattleOutcome(Structure):
@@ -278,7 +300,6 @@ class Pokemon:
     lib.Pokemon_add_fmove.argtypes = [c_void_p, c_void_p]
     lib.Pokemon_add_fmove.restype = c_void_p
 
-
     lib.Pokemon_add_cmove.argtypes = [c_void_p, c_void_p]
     lib.Pokemon_add_cmove.restype = c_void_p
 
@@ -292,8 +313,6 @@ class Pokemon:
     lib.Pokemon_has_attr.argtypes = [c_void_p, c_char_p]
     lib.Pokemon_has_attr.restype = c_bool
     def __hasattr__(self, name):
-        if name == "fmove" or name == "cmove" or name == "cmoves":
-            return True
         return lib.Pokemon_has_attr(self._addr, name.encode('utf-8'))
 
 
@@ -305,7 +324,7 @@ class Pokemon:
         elif name == "cmove":
             return Move(lib.Pokemon_get_cmove(self._addr, -1))
         elif name == "cmoves":
-            cmoves = 0
+            cmoves = []
             for i in range(round(self.cmoves_count)):
                 cmoves.append(Move(lib.Pokemon_get_cmove(self._addr, i)))
             return cmoves
@@ -385,8 +404,6 @@ class Party:
     lib.Party_has_attr.argtypes = [c_void_p, c_char_p]
     lib.Party_has_attr.restype = c_bool
     def __hasattr__(self, name):
-        if name == "pokemon":
-            return True
         return lib.Party_has_attr(self._addr, name.encode('utf-8'))
 
 
@@ -467,8 +484,6 @@ class Player:
     lib.Player_has_attr.argtypes = [c_void_p, c_char_p]
     lib.Player_has_attr.restype = c_bool
     def __hasattr__(self, name):
-        if name == "parties" or name == "strategy":
-            return True
         return lib.Player_has_attr(self._addr, name.encode('utf-8'))
 
 
@@ -676,12 +691,27 @@ class Battle:
         return battle_outcome
 
 
+    lib.Battle_get_log.argtypes = [c_void_p, c_void_p]
+    lib.Battle_get_log.restype = c_void_p
+    def get_log(self):
+        '''
+        Get the battle log. Note: enable logging, set has_log to True.
+        '''
+
+        tenode = TimelineEventNode()
+        lib.Battle_get_log(self._addr, pointer(tenode))
+        event_list = []
+        while tenode.next is not None:
+            tenode_ptr = cast(tenode.next, POINTER(TimelineEventNode))
+            tenode = tenode_ptr[0]
+            event_list.append(tenode.item)
+        return event_list
+
+
 
     lib.Battle_has_attr.argtypes = [c_void_p, c_char_p]
     lib.Battle_has_attr.restype = c_bool
     def __hasattr__(self, name):
-        if name == "players":
-            return True
         return lib.Battle_has_attr(self._addr, name.encode('utf-8'))
 
 
@@ -693,6 +723,10 @@ class Battle:
             for i in range(round(self.players_count)):
                 players_list.append(Player(lib.Battle_get_player(self._addr, i)))
             return players_list
+        elif name == "outcome":
+            return self.get_outcome(1)
+        elif name == "log":
+            return self.get_log()
         else:
             return lib.Battle_get_attr(self._addr, name.encode('utf-8'))
 

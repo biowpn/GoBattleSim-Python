@@ -9,7 +9,7 @@ A Pokemon Go Battle Simulator (GoBattleSim) with Python API.
 
 64-bit Windows Operating System
 
-64-bit Python
+64-bit Python 3
 
 ### Installing
 
@@ -37,7 +37,7 @@ Some of the common errors include:
 WindowsError: ... not a valid Win32 application
 ```
 
-This could be that your Python is 32-bit. I only compiled a 64-bit DLL in the package. Therefore, again, 64-bit Python is required.
+This could be that your Python is 32-bit. I only compiled the simulator core into a 64-bit DLL. Therefore, again, 64-bit Python is required.
 
 ## Quick Start
 
@@ -51,7 +51,10 @@ Coming up!
 
 ## Contributing
 
-.
+The feature requests and known bugs are listed in the [issues](https://github.com/ymenghank/GoBattleSim-Python/issues) section.
+You are more than welcome to help by adding items to that list!
+
+Note that this repo is the interface part of the simulator. The core part that contains the actual battle logic will be in another repo.
 
 ## Versioning
 
@@ -67,5 +70,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Acknowledgments
 
-* Web GoBattleSim (https://github.com/ymenghank/GoBattleSim) has been for over a year. A lot of improvements have been made, but the key issue persists - speed performance. 
+* [Web GoBattleSim](https://github.com/ymenghank/GoBattleSim) has been for over a year. A lot of improvements have been made, but the key issue persists - speed performance. 
 So I wanted to make a faster one. I want to make it fly. And there it is, core engine written in C++, exported as DLL, and wrapped in Python.

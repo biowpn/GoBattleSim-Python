@@ -7,7 +7,7 @@ A Pokemon Go Battle Simulator (GoBattleSim) with Python API.
 
 ### Prerequisites
 
-64-bit Windows Operating System
+64-bit Windows/Linux
 
 64-bit Python 3
 
@@ -19,14 +19,10 @@ First, install the package using pip in command line window:
 pip install gobattlesim
 ```
 
-<i>Right now, there is only the core `engine` sub-module available.
-It's enough to run any multi-player raid/gym battle, but you'd need to specify a lot of game parameters manually.
-In the future, I'll add some sort of game master parser and other useful high-level application functions (like find_best_counter()).</i>
-
 Then:
 
 ```
-import gobattlesim.engine
+import gobattlesim.interface
 ```
 
 If no error pops up, then you are good to go!
@@ -41,7 +37,54 @@ This could be that your Python is 32-bit. I only compiled the simulator core int
 
 ## Quick Start
 
-Some [examples](examples/) have been given in the repo.
+The `gobattlesim.interface` module saves a lot of typing. To use the module, you need to first acquire a game master file in json format.
+You can find one in sources online such as [this repo](https://github.com/pokemongo-dev-contrib/pokemongo-game-master).
+
+Suppose the game master file is "GAME_MASTER.json" and is placed in the same folder with your script. Then do:
+
+```
+import gobattlesim.interface as gbs
+
+gbs.GameMaster("GAME_MASTER.json").apply()
+```
+
+Now game master file has been parsed and applied to the simulator.
+
+Let's run some simulations on the classic Tyranitar Duo with two teams of max perfect Machamp:
+
+```
+result = gbs.quick_raid_battle(
+    {
+        "name": "machamp",
+        "fmove": "counter",
+        "cmove": "dynamic punch"
+    },
+    {
+        "name": "tyranitar",
+        "fmove": "bite",
+        "cmove": "crunch",
+        "tier": 4
+    },
+    num_players=2
+)
+
+print("Machamp duo T4 Tyranitar:")
+print(result)
+
+```
+
+The `result` is a dict containing some performance metrics, such as "Average TDO%". A sample output could be:
+
+```
+Machamp duo T4 Tyranitar:
+{'Average Duration': 130157.966, 'Win rate': 1.0, 'Average TDO%': 1.010376666666664, 'Average #Deaths': 3.506}
+```
+
+One may find `gobattlesim.interface.quick_raid_battle` (and `gobattlesim.interface.quick_pvp_battle`) rather limited, 
+and may want more control on the simulations. The `gobattlesim.engine` is for this purpose. 
+In fact, `gobattlesim.interface` is built on top of `gobattlesim.engine`. Note that, without the game master, you need to specify all sorts of paramters yourself.
+
+More [examples](https://github.com/ymenghank/GoBattleSim-Python/tree/master/examples) of using `gobattlesim.engine` alone to run simulations have been given in the repo.
 
 
 ## Documentations

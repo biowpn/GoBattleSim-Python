@@ -18,7 +18,12 @@ as well as some functions to set battle paremeters.
 from ctypes import *
 
 import os
-lib = CDLL(os.path.join(os.path.dirname(__file__), "GoBattleSim.dll"))
+import platform
+
+if platform.system() == "Windows":
+    lib = CDLL(os.path.join(os.path.dirname(__file__), "GoBattleSim.dll"))
+else:
+    lib = CDLL(os.path.join(os.path.dirname(__file__), "libGoBattleSim.so"))
 
 
 
@@ -40,6 +45,8 @@ BATTLE_PARAMETERS = [
     "max_revive_time_per_pokemon",
     "same_type_attack_bonus_multiplier",
     "weather_attack_bonus_multiplier",
+    "pvp_fast_attack_bonus_multiplier",
+    "pvp_charged_attack_bonus_multiplier",
     "dodge_damage_reduction_percent",
     "energy_delta_per_health_lost",
 ]
@@ -85,14 +92,37 @@ def set_random_seed(seed):
     lib.Global_set_random_seed(seed)
 
 
-lib.get_damage.argtypes = [c_void_p, c_void_p, c_void_p, c_int]
-lib.get_damage.restype = c_int
+lib.Global_calc_damage.argtypes = [c_void_p, c_void_p, c_void_p, c_int]
+lib.Global_calc_damage.restype = c_int
 def calc_damage(attacker, move, defender, weather):
     '''
-    Calculate the damage value of attacker using move against defender in some weather.
+    [For PvE Battles] Calculate the damage value of attacker using move against defender in some weather.
     '''
 
-    return lib.get_damage(attacker._addr, move._addr, defender._addr, weather)
+    return lib.Global_calc_damage(attacker._addr, move._addr, defender._addr, weather)
+
+
+lib.Global_calc_damage_pvp_fmove.argtypes = [c_void_p, c_void_p, c_void_p]
+lib.Global_calc_damage_pvp_fmove.restype = c_int
+def calc_damage_pvp_fmove(attacker, move, defender):
+    '''
+    [For PvP Battles] Calculate the damage value of attacker using move against defender.
+    GameMaster::pvp_fast_attack_bonus_multiplier is taken into account.
+    '''
+
+    return lib.Global_calc_damage_pvp_fmove(attacker._addr, move._addr, defender._addr)
+
+
+lib.Global_calc_damage_pvp_cmove.argtypes = [c_void_p, c_void_p, c_void_p]
+lib.Global_calc_damage_pvp_cmove.restype = c_int
+def calc_damage_pvp_cmove(attacker, move, defender, weather):
+    '''
+    [For PvP Battles] Calculate the damage value of attacker using move against defender.
+    GameMaster::pvp_charged_attack_bonus_multiplier is taken into account.
+    '''
+
+    return lib.Global_calc_damage_pvp_cmove(attacker._addr, move._addr, defender._addr)
+
 
 
 lib.GameMaster_set_num_types.argtypes = [c_int]
@@ -125,14 +155,21 @@ def set_type_boosted_weather(type_i, weather):
     lib.GameMaster_set_type_boosted_weather(type_i, weather)
 
 
+lib.GameMaster_set_stage_bounds.argtypes = [c_int, c_int]
+lib.GameMaster_set_stage_bounds.restype = c_void_p
 lib.GameMaster_set_stage_multiplier.argtypes = [c_int, c_double]
 lib.GameMaster_set_stage_multiplier.restype = c_void_p
-def set_stage_multiplier(stage_i, multiplier):
+def set_stage_multipliers(multipliers, min_stage=None):
     '''
-    Set the stat multiplier for stage i.
+    Set the stat multipliers.
     '''
 
-    lib.GameMaster_set_stage_multiplier(stage_i, multiplier)
+    if min_stage is None:
+        min_stage = - (len(multipliers) // 2)
+    max_stage = min_stage + len(multipliers) - 1
+    lib.GameMaster_set_stage_bounds(min_stage, max_stage)
+    for i in range(min_stage, max_stage + 1):
+        lib.GameMaster_set_stage_multiplier(i, multipliers[i - min_stage])
 
 
 lib.GameMaster_set_parameter.argtypes = [c_char_p, c_double]
@@ -147,8 +184,10 @@ def set_parameter(name, value):
 
 
 
+
+
 '''
-Classes
+    PvE Classes
 '''
 
 class TimelineEvent(Structure):
@@ -171,6 +210,10 @@ class BattleOutcome(Structure):
                 ("num_deaths", c_int)]
 
 
+
+
+
+
 class Action(Structure):
     _fields_ = [("type", c_int),
                 ("delay", c_int),
@@ -187,7 +230,6 @@ class _StrategyInput(Structure):
                 ("random_number", c_int),
                 ("weather", c_int)]
 
-
 class StrategyInput:
 
     def __init__(self, _strat_input):
@@ -199,13 +241,20 @@ class StrategyInput:
         self.random_number = _strat_input.random_number
         self.weather = _strat_input.weather
             
-
-
-
 EventResponder = CFUNCTYPE(c_void_p, _StrategyInput, POINTER(Action))
 
 
 
+
+
+
+
+class MoveEffect(Structure):
+    _fields_ = [("activation_chance", c_double),
+                ("self_attack_stage_delta", c_int),
+                ("self_defense_stage_delta", c_int),
+                ("target_attack_stage_delta", c_int),
+                ("target_defense_stage_delta", c_int)]
 
 
 class Move:
@@ -246,18 +295,31 @@ class Move:
         return lib.Move_has_attr(self._addr, name.encode('utf-8'))
 
 
+    lib.Move_get_effect.argtypes = [c_void_p, c_void_p]
+    lib.Move_get_effect.restype = c_void_p
     lib.Move_get_attr.argtypes = [c_void_p, c_char_p]
     lib.Move_get_attr.restype = c_int
     def __getattr__(self, name):
-        return lib.Move_get_attr(self._addr, name.encode('utf-8'))
+        if name == "effect":
+            me = MoveEffect()
+            lib.Move_get_effect(self._addr, pointer(me))
+            return me
+        else:
+            return lib.Move_get_attr(self._addr, name.encode('utf-8'))
 
 
+    lib.Move_set_effect.argtypes = [c_void_p, c_void_p]
+    lib.Move_set_effect.restype = c_void_p
     lib.Move_set_attr.argtypes = [c_void_p, c_char_p, c_int]
     lib.Move_set_attr.restype = c_void_p
     def __setattr__(self, name, value):
         if self._locked:
             raise Exception("Cannot modify locked instance")
-        lib.Move_set_attr(self._addr, name.encode('utf-8'), c_int(value))
+        if name == "effect":
+            assert isinstance(value, MoveEffect)
+            lib.Move_set_effect(self._addr, pointer(value))
+        else:
+            lib.Move_set_attr(self._addr, name.encode('utf-8'), c_int(value))
 
 
 
@@ -450,6 +512,7 @@ class Player:
             self.__dict__["_addr"] = lib.Player_new()
             self.__dict__["_locked"] = False
         self.__dict__["_attack_multiplier"] = 1
+        self.__dict__["_clone_multiplier"] = 1
         for name, value in kwargs.items():
             self.__setattr__(name, value)
 
@@ -463,14 +526,12 @@ class Player:
 
     lib.Player_get_party.argtypes = [c_void_p, c_int]
     lib.Player_get_party.restype = c_void_p
-
+    
     lib.Player_add_party.argtypes = [c_void_p, c_void_p]
     lib.Player_add_party.restype = c_void_p
-
+    
     lib.Player_erase_parties.argtypes = [c_void_p]
     lib.Player_erase_parties.restype = c_void_p
-
-    
     def add(self, party):
         '''
         Add a party to the player.
@@ -489,7 +550,7 @@ class Player:
 
     lib.Player_get_strategy.argtypes = [c_void_p]
     lib.Player_get_strategy.restype = c_void_p
-
+    
     lib.Player_get_attr.argtypes = [c_void_p, c_char_p]
     lib.Player_get_attr.restype = c_int    
     def __getattr__(self, name):
@@ -500,6 +561,8 @@ class Player:
             return party_list
         elif name == "attack_multiplier":
             return self._attack_multiplier
+        elif name == "clone_multiplier":
+            return self._clone_multiplier
         elif name == "strategy":
             return Strategy(lib.Player_get_strategy(self._addr))
         else:
@@ -508,6 +571,9 @@ class Player:
 
     lib.Player_set_attack_multiplier.argtypes = [c_void_p, c_double]
     lib.Player_set_attack_multiplier.restype = c_void_p
+
+    lib.Player_set_clone_multiplier.argtypes = [c_void_p, c_int]
+    lib.Player_set_clone_multiplier.restype = c_void_p
 
     lib.Player_set_strategy.argtypes = [c_void_p, c_int]
     lib.Player_set_strategy.restype = c_void_p
@@ -526,8 +592,11 @@ class Player:
                 assert isinstance(party, Party)
                 lib.Player_add_party(self._addr, party._addr)
         elif name == "attack_multiplier":
-            self._attack_multiplier = value
+            self.__dict__["_attack_multiplier"] = value
             lib.Player_set_attack_multiplier(self._addr, c_double(value))
+        elif name == "clone_multiplier":
+            self.__dict__["_clone_multiplier"] = value
+            lib.Player_set_clone_multiplier(self._addr, c_int(value))
         elif name == "strategy":
             if isinstance(value, Strategy):
                 lib.Player_set_custom_strategy(self._addr, value._addr)
@@ -594,8 +663,6 @@ class Strategy:
             lib.Strategy_set_on_attack(self._addr, Strategy.wrap(value))
         else:
             raise AttributeError("Must be 'on_free' or 'on_clear' or 'on_attack'")
-            
-
 
 
 
@@ -623,7 +690,6 @@ class Battle:
         lib.Battle_delete(self._addr)
 
         
-
     lib.Battle_get_player.argtypes = [c_void_p, c_int]
     lib.Battle_get_player.restype = c_void_p
     
@@ -656,7 +722,6 @@ class Battle:
             lib.Battle_update_pokemon(self._addr, entity._addr)
         else:
             raise Exception("Unsupported type of entity")
-
 
 
     lib.Battle_init.argtypes = [c_void_p]
@@ -708,7 +773,6 @@ class Battle:
         return event_list
 
 
-
     lib.Battle_has_attr.argtypes = [c_void_p, c_char_p]
     lib.Battle_has_attr.restype = c_bool
     def __hasattr__(self, name):
@@ -746,3 +810,213 @@ class Battle:
 
 
 
+
+
+'''
+    PvP Classes
+'''
+
+PVP_STRATEGY_BASIC_0_SHIELD = 0
+PVP_STRATEGY_BASIC_1_SHIELD = 1
+PVP_STRATEGY_BASIC_2_SHIELD = 2
+
+
+class SimplePvPBattleOutcome(Structure):
+    _fields_ = [("tdo_percent", c_double * 2)]
+
+
+class _PvPStrategyInput(Structure):
+    _fields_ = [("subject", c_void_p),
+                ("subject_hp", c_int),
+                ("subject_energy", c_int),
+                ("subject_shields", c_int),
+                ("enemy", c_void_p),
+                ("enemy_hp", c_int),
+                ("enemy_energy", c_int),
+                ("enemy_shields", c_int)]
+
+class PvPStrategyInput:
+
+    def __init__(self, _pvp_input):
+        self.subject = Pokemon(_pvp_input.subject)
+        self.subject.__dict__["hp"] = _pvp_input.subject_hp
+        self.subject.__dict__["energy"] = _pvp_input.subject_energy
+        self.subject.__dict__["shields"] = _pvp_input.subject_shields
+        self.enemy = Pokemon(_pvp_input.enemy)
+        self.enemy.__dict__["hp"] = _pvp_input.enemy_hp
+        self.enemy.__dict__["energy"] = _pvp_input.enemy_energy
+        self.enemy.__dict__["shields"] = _pvp_input.enemy_shields
+
+PvPEventResponder = CFUNCTYPE(c_void_p, _PvPStrategyInput, POINTER(Action))
+
+
+
+
+class PvPStrategy:
+
+    user_event_responders = []
+
+    @staticmethod
+    def wrap(event_responder):
+        def event_responder_outer(t_strat_input, t_action_p):
+            action = event_responder(PvPStrategyInput(t_strat_input))
+            t_action_p[0].type = action.type
+            t_action_p[0].delay = action.delay
+            t_action_p[0].value = action.value
+        t_er = PvPEventResponder(event_responder_outer)
+        PvPStrategy.user_event_responders.append(t_er)
+        return t_er
+
+
+    lib.PvPStrategy_new.argtypes = []
+    lib.PvPStrategy_new.restype = c_void_p
+    def __init__(self, _src=None, **kwargs):
+        if _src is not None:
+            if isinstance(_src, PvPStrategy):
+                self.__dict__["_addr"] = _src._addr
+            else:
+                self.__dict__["_addr"] = _src
+            self.__dict__["_locked"] = True
+        else:
+            self.__dict__["_addr"] = lib.PvPStrategy_new()
+            self.__dict__["_locked"] = False
+        for name, value in kwargs.items():
+            self.__setattr__(name, value)
+
+
+    lib.PvPStrategy_delete.argtypes = [c_void_p]
+    lib.PvPStrategy_delete.restype = c_void_p
+    def __del__(self):
+        if not self._locked:
+            lib.PvPStrategy_delete(self._addr)
+
+
+    lib.PvPStrategy_set_on_free.argtypes = [c_void_p, c_void_p]
+    lib.PvPStrategy_set_on_free.restype = c_void_p
+
+    lib.PvPStrategy_set_on_attack.argtypes = [c_void_p, c_void_p]
+    lib.PvPStrategy_set_on_attack.restype = c_void_p
+
+    # PvPBattle that supports on_switch not implemented
+    lib.PvPStrategy_set_on_switch.argtypes = [c_void_p, c_void_p]
+    lib.PvPStrategy_set_on_switch.restype = c_void_p
+    def __setattr__(self, name, value):
+        if name == "on_free":
+            lib.PvPStrategy_set_on_free(self._addr, PvPStrategy.wrap(value))
+        elif name == "on_attack":
+            lib.PvPStrategy_set_on_attack(self._addr, PvPStrategy.wrap(value))
+        elif name == "on_switch":
+            lib.PvPStrategy_set_on_switch(self._addr, PvPStrategy.wrap(value))
+        else:
+            raise AttributeError("Must be 'on_free' or 'on_attack' or 'on_switch'")
+
+
+
+
+class PvPPokemon(Pokemon):
+        
+    lib.PvPPokemon_new.argtypes = [c_int, c_int, c_double, c_double, c_int]
+    lib.PvPPokemon_new.restype = c_void_p
+    def __init__(self, _src=None, **kwargs):
+        init_params = ["poketype1", "poketype2", "attack", "defense", "max_hp"]
+        if _src is not None:
+            if isinstance(_src, PvPPokemon):
+                self.__dict__["_addr"] = _src._addr
+            else:
+                self.__dict__["_addr"] = _src
+            self.__dict__["_locked"] = True
+        else:
+            self.__dict__["_addr"] = lib.PvPPokemon_new(
+                kwargs.get("poketype1", -1),
+                kwargs.get("poketype2", -1),
+                kwargs.get("attack", 0),
+                kwargs.get("defense", 0),
+                kwargs.get("max_hp", 0))
+            self.__dict__["_locked"] = False
+            for name, value in kwargs.items():
+                if name not in init_params:
+                    self.__setattr__(name, value)
+
+
+    lib.PvPPokemon_delete.argtypes = [c_void_p]
+    lib.PvPPokemon_delete.restype = c_void_p
+    def __del__(self):
+        if not self._locked:
+            lib.PvPPokemon_delete(self._addr)
+
+
+    lib.PvPPokemon_set_pvp_strategy.argtypes = [c_void_p, c_int]
+    lib.PvPPokemon_set_pvp_strategy.restype = c_void_p
+    lib.PvPPokemon_set_custom_pvp_strategy.argtypes = [c_void_p, c_void_p]
+    lib.PvPPokemon_set_custom_pvp_strategy.restype = c_void_p
+    def __setattr__(self, name, value):
+        if name == "pvp_strategy":
+            if isinstance(value, PvPStrategy):
+                lib.PvPPokemon_set_custom_pvp_strategy(self._addr, value._addr)
+            else:
+                lib.PvPPokemon_set_pvp_strategy(self._addr, value)
+        else:
+            super().__setattr__(name, value)
+
+
+
+
+class SimplePvPBattle:
+    
+    lib.SimplePvPBattle_new.argtypes = [c_void_p, c_void_p]
+    lib.SimplePvPBattle_new.restype = c_void_p
+    def __init__(self, pokemon_0, pokemon_1):
+        '''
+        Internally, shallow copy is used for both Pokemon.
+        Don't del them before this SimplePvPBattle instance finishes simulation!
+        '''
+        
+        self.__dict__["_addr"] = lib.SimplePvPBattle_new(pokemon_0._addr, pokemon_1._addr)
+        self.__dict__["_pokemon"] = [pokemon_0, pokemon_1] # Prevent garbage collection
+
+
+    lib.SimplePvPBattle_delete.argtypes = [c_void_p]
+    lib.SimplePvPBattle_delete.restype = c_void_p
+    def __del__(self):
+        lib.SimplePvPBattle_delete(self._addr)
+
+
+    lib.SimplePvPBattle_init.argtypes = [c_void_p]
+    lib.SimplePvPBattle_init.restype = c_void_p
+    def init(self):
+        '''
+        Initialize the battle.
+        '''
+        
+        lib.SimplePvPBattle_init(self._addr)
+
+
+    lib.SimplePvPBattle_start.argtypes = [c_void_p]
+    lib.SimplePvPBattle_start.restype = c_void_p
+    def start(self):
+        '''
+        Start a new simulation.
+        '''
+        
+        lib.SimplePvPBattle_start(self._addr)
+
+
+    lib.SimplePvPBattle_get_outcome.argtypes = [c_void_p, c_void_p]
+    lib.SimplePvPBattle_get_outcome.restype = c_void_p
+    def get_outcome(self):
+        '''
+        Get the simple pvp battle outcome.
+        '''
+        
+        pvp_battle_outcome = SimplePvPBattleOutcome()
+        lib.SimplePvPBattle_get_outcome(self._addr, pointer(pvp_battle_outcome))
+        return pvp_battle_outcome
+
+
+    def __getattr__(self, name):
+        if name == "outcome":
+            return self.get_outcome()
+
+
+
+        

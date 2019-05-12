@@ -9,7 +9,7 @@ A Pokemon Go Battle Simulator (GoBattleSim) with Python API.
 
 64-bit Windows/Linux
 
-64-bit Python 3
+64-bit Python 3.5+
 
 ### Installing
 

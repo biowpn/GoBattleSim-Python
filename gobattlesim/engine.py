@@ -316,8 +316,13 @@ class Move:
         if self._locked:
             raise Exception("Cannot modify locked instance")
         if name == "effect":
-            assert isinstance(value, MoveEffect)
-            lib.Move_set_effect(self._addr, pointer(value))
+            if isinstance(value, MoveEffect):
+                lib.Move_set_effect(self._addr, pointer(value))
+            elif isinstance(value, dict):
+                me = MoveEffect(**value)
+                lib.Move_set_effect(self._addr, pointer(me))
+            else:
+                raise Exception("Wrong type for MoveEffect {}".format(type(value)))
         else:
             lib.Move_set_attr(self._addr, name.encode('utf-8'), c_int(value))
 
@@ -1019,4 +1024,55 @@ class SimplePvPBattle:
 
 
 
+class BattleMatrix:
+
+    lib.BattleMatrix_new.argtypes = [c_int, c_void_p, c_bool]
+    lib.BattleMatrix_new.restype = c_void_p
+    def __init__(self, pokemon_list, enum_shields=False):
+        self.pokemon_instances = [] # Prevent garbage collection
+        pokemon_addrs = []
+        for pokemon in pokemon_list:
+            pkm = PvPPokemon(pokemon)
+            self.pokemon_instances.append(pkm)
+            pokemon_addrs.append(pkm._addr)
+        self.pkm_count = len(pokemon_addrs)
+        pkm_list_ptr = (c_void_p * self.pkm_count)(*pokemon_addrs)
+        self._addr = lib.BattleMatrix_new(self.pkm_count, pkm_list_ptr, enum_shields)
+
         
+    lib.BattleMatrix_delete.argtypes = [c_void_p]
+    lib.BattleMatrix_delete.restype = c_void_p
+    def __del__(self):
+        lib.BattleMatrix_delete(self._addr)
+
+        
+    lib.BattleMatrix_run.argtypes = [c_void_p]
+    lib.BattleMatrix_run.restype = c_void_p
+    def run(self):
+        '''
+        Run the battle matrix.
+        '''
+
+        lib.BattleMatrix_run(self._addr)
+        return self
+
+
+    lib.BattleMatrix_get.argtypes = [c_void_p, POINTER(POINTER(c_double))]
+    lib.BattleMatrix_get.restype = c_void_p
+    def get(self):
+        '''
+        Return a 2D array of battle scores.
+        '''
+
+        n = self.pkm_count
+
+        STATIC_ROW = (n * c_double)
+        DYNAMIC_ROW = POINTER(c_double)
+        STATIC_MAT = (n * DYNAMIC_ROW)
+        DYNAMIC_MAT = POINTER(DYNAMIC_ROW)
+        
+        c_matrix = cast(STATIC_MAT(*[cast(STATIC_ROW(), DYNAMIC_ROW) for _ in range(n)]), DYNAMIC_MAT)
+
+        lib.BattleMatrix_get(self._addr, c_matrix)
+
+        return [[c_matrix[r][c] for c in range(n)] for r in range(n)]

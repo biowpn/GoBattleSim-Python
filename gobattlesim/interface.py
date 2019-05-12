@@ -10,6 +10,8 @@ and more convenient battle objects initialization.
 
 import json
 import re
+import copy
+import itertools
 
 from .engine import *
 
@@ -20,18 +22,27 @@ from .engine import *
     Useful functions
 '''
 
-def quick_raid_battle(attacker, raid_boss,
-                      num_attackers=6, num_players=1, friend=0, strategy=STRATEGY_ATTACKER_NO_DODGE, rejoin=False,
-                      weather="extreme", num_sims=1000):
+def quick_raid_battle(attacker,
+                      boss,
+                      num_attackers=6,
+                      num_players=1,
+                      friend=0,
+                      strategy=STRATEGY_ATTACKER_NO_DODGE,
+                      rejoin=False,
+                      weather="extreme",
+                      num_sims=2000,
+                      random_seed=0):
     '''
     Simulate a simple raid battle.
     Returns a dict of average outcome.
     '''
 
+    set_random_seed(random_seed)
+
     gm = IPokemon._binded_gm
 
     a_pokemon = IPokemon(attacker)
-    d_pokemon = IPokemon(raid_boss)
+    d_pokemon = IPokemon(boss)
 
     a_party = Party()
     a_party.pokemon = [a_pokemon] * num_attackers
@@ -69,7 +80,9 @@ def quick_raid_battle(attacker, raid_boss,
 
 
 
-def quick_pvp_battle(pokemon_0, pokemon_1, num_shields=[]):
+def quick_pvp_battle(pokemon_0,
+                     pokemon_1,
+                     num_shields=[]):
     '''
     Simulate a quick PvP battle.
     Returns the battle score of pokemon_0.
@@ -96,6 +109,8 @@ def quick_pvp_battle(pokemon_0, pokemon_1, num_shields=[]):
 
 
 
+
+
 '''
     Classes
 '''
@@ -106,7 +121,7 @@ class GameMaster:
     This class stores all the releveant the game data.
     It can also pass the data to gobattlesim.Engine.
     '''
-
+    
 
     PoketypeList = ["normal", "fighting", "flying", "poison", "ground", "rock", "bug", "ghost",
         "steel", "fire", "water", "grass", "electric", "psychic", "ice", "dragon", "dark", "fairy"]
@@ -150,7 +165,57 @@ class GameMaster:
         self.PvEBattleSettings = {}
         self.PvPBattleSettings = {}
 
+        return self
 
+
+    def sync(self, source):
+        '''
+        Update from (and merge with) GameMaster-like dict {source}.
+        '''
+
+        def _merge_list(tgt, src, search_method):
+            for src_item in src:
+                matches = search_method(item['name'], True)
+                if matches:
+                    tgt_item = matches[0]
+                    for k, v in src_item.items():
+                        tgt_item[k] = v
+
+        def _merge_dict(tgt, src):
+            for k, v in src.items():
+                tgt[k] = v
+        
+        _merge_list(self.Pokemon, source.get("Pokemon", []), self.search_pokemon)
+        _merge_list(self.PvEMoves, source.get("PvEMoves", []), self.search_pve_move)
+        _merge_list(self.PvPMoves, source.get("PvPMoves", []), self.search_pvp_move)
+        _merge_dict(self.TypeEffectiveness, source.get("TypeEffectiveness", {}))
+        _merge_dict(self.PvEBattleSettings, source.get("PvEBattleSettings", {}))
+        _merge_dict(self.PvEBattleSettings, source.get("PvEBattleSettings", {}))
+
+        return self.as_json()
+
+
+    def overwrite(self, source):
+        '''
+        Overwrite this instance with {source}, a GameMaster-like dict object.
+        Warning: this is very likely to corrupt the game master instance.
+        '''
+
+        for name, value in source.items():
+            if name in self.__dict__:
+                self.__dict__[name] = value
+
+        return self.as_json()
+
+
+    def as_json(self):
+        '''
+        Export this instance to a GameMaster-like dict.
+        '''
+
+        return self.__dict__
+
+    
     def feed(self, file):
         '''
         Load and process a game master json file with filepath {file}.
@@ -208,13 +273,13 @@ class GameMaster:
                 move['duration'] = int(moveInfo.get('durationTurns', 0))
                 move['energy'] = int(moveInfo.get("energyDelta", 0))
                 if "buffs" in moveInfo:
-                    move['effect'] = MoveEffect(
-                        moveInfo["buffs"]["buffActivationChance"],
-                        moveInfo["buffs"].get("attackerAttackStatStageChange", 0),
-                        moveInfo["buffs"].get("attackerDefenseStatStageChange", 0),
-                        moveInfo["buffs"].get("targetAttackStatStageChange", 0),
-                        moveInfo["buffs"].get("targetDefenseStatStageChange", 0)
-                    )
+                    move['effect'] = {
+                        "buffActivationChance": moveInfo["buffs"]["buffActivationChance"],
+                        "attackerAttackStatStageChange": moveInfo["buffs"].get("attackerAttackStatStageChange", 0),
+                        "attackerDefenseStatStageChange": moveInfo["buffs"].get("attackerDefenseStatStageChange", 0),
+                        "targetAttackStatStageChange": moveInfo["buffs"].get("targetAttackStatStageChange", 0),
+                        "targetDefenseStatStageChange": moveInfo["buffs"].get("targetDefenseStatStageChange", 0)
+                    }
 
                 self.PvPMoves.append(move)
         
@@ -266,6 +331,8 @@ class GameMaster:
 
         self.FriendAttackBonusMultipliers.sort(key=lambda x: x["multiplier"])
 
+        return self
+
 
     def apply(self):
         '''
@@ -313,6 +380,8 @@ class GameMaster:
         # Bind this instance to interface classes
         IPokemon.bind_game_master(self)
         IMove.bind_game_master(self)
+
+        return self
         
                 
 
@@ -346,7 +415,52 @@ class GameMaster:
         return GameMaster._search(self.Pokemon, criteria, _all)
 
 
-    def search_move_pve(self, criteria, _all=False):
+    def search_move(self, criteria, _all=False):
+        '''
+        Same as search_pve_move
+        '''
+        return self.search_pve_move(criteria, _all)
+
+
+    def search_fmove(self, criteria, _all=False):
+        '''
+        Same as search_pve_fmove
+        '''
+        return self.search_pve_fmove(criteria, _all)
+
+    def search_cmove(self, criteria, _all=False):
+        '''
+        Same as search_pve_cmove
+        '''
+        return self.search_pve_cmove(criteria, _all)
+
+
+    def search_pve_fmove(self, criteria, _all=False):
+        '''
+        Same as search_pve_move, but return only the Fast moves.
+        '''
+        return GameMaster._search(filter(lambda x: x.get('movetype') == 'f', self.PvEMoves), criteria, _all)
+
+    def search_pve_cmove(self, criteria, _all=False):
+        '''
+        Same as search_pve_move, but return only the Charged moves.
+        '''
+        return GameMaster._search(filter(lambda x: x.get('movetype') == 'c', self.PvEMoves), criteria, _all)
+
+    def search_pvp_fmove(self, criteria, _all=False):
+        '''
+        Same as search_pvp_move, but return only the Fast moves.
+        '''
+        return GameMaster._search(filter(lambda x: x.get('movetype') == 'f', self.PvPMoves), criteria, _all)
+
+    def search_pvp_cmove(self, criteria, _all=False):
+        '''
+        Same as search_pvp_move, but return only the Charged moves.
+        '''
+        return GameMaster._search(filter(lambda x: x.get('movetype') == 'c', self.PvPMoves), criteria, _all)
+
+
+    def search_pve_move(self, criteria, _all=False):
         '''
         Fetch and return the PvE Move satisfying the criteria.
         
@@ -357,7 +471,7 @@ class GameMaster:
         return GameMaster._search(self.PvEMoves, criteria, _all)
 
 
-    def search_move_pvp(self, criteria, _all=False):
+    def search_pvp_move(self, criteria, _all=False):
         '''
         Fetch and return the PvP Move satisfying the criteria.
         
@@ -427,12 +541,257 @@ class GameMaster:
         raise Exception("Tier {} not found".format(tier))
 
 
+    def batch_pokemon(self, pkm_dict):
+        '''
+        Return the product by all possible values of all the wild card queries, if any.
+        
+        The attribute fields that can contain wild card query:
+            name
+            fmove
+            cmove
+            cmove2
+        '''
+
+        results = []
+
+        species_matches = []
+        fmove_matches = []
+        cmove_matches = []
+        cmove2_matches = []
+        has_cmove2 = "cmove2" in pkm_dict
+
+        # Try for direct match first. Only if no direct match will the program try for query match.
+        try:
+            species_matches = [self.search_pokemon(pkm_dict['name'])]
+        except:
+            species_matches = self.search_pokemon(PokeQuery(pkm_dict['name']), True)
+        try:
+            fmove_matches = [self.search_fmove(pkm_dict['fmove'])]
+        except:
+            pass
+        try:
+            cmove_matches = [self.search_cmove(pkm_dict['cmove'])]
+        except:
+            pass
+        if has_cmove2:
+            try:
+                cmove2_matches = [self.search_cmove(pkm_dict['cmove2'])]
+            except:
+                pass
+        
+        for species in species_matches:
+            if fmove_matches:
+                cur_fmove_matches = fmove_matches
+            else:
+                cur_fmove_matches = self.search_fmove(PokeQuery(pkm_dict['fmove'], species, 'f'), True)
+            if cmove_matches:
+                cur_cmove_matches = cmove_matches
+            else:
+                cur_cmove_matches = self.search_cmove(PokeQuery(pkm_dict['cmove'], species, 'c'), True)
+            if has_cmove2:
+                if cmove2_matches:
+                    cur_cmove2_matches = cmove2_matches
+                else:
+                    cur_cmove2_matches = self.search_cmove(PokeQuery(pkm_dict['cmove2'], species, 'c'), True)
+                for fmove, cmove, cmove2 in itertools.product(cur_fmove_matches, cur_cmove_matches, cur_cmove2_matches):
+                    cur_pokemon = copy.copy(pkm_dict)
+                    cur_pokemon['name'] = species['name']
+                    cur_pokemon['fmove'] = fmove['name']
+                    cur_pokemon['cmove'] = cmove['name']
+                    cur_pokemon['cmove2'] = cmove2['name']
+                    if cur_pokemon['cmove2'] != cur_pokemon['cmove']:
+                        results.append(cur_pokemon)
+            else:
+                for fmove, cmove in itertools.product(cur_fmove_matches, cur_cmove_matches):
+                    cur_pokemon = copy.copy(pkm_dict)
+                    cur_pokemon['name'] = species['name']
+                    cur_pokemon['fmove'] = fmove['name']
+                    cur_pokemon['cmove'] = cmove['name']
+                    results.append(cur_pokemon)
+
+        return results
+    
+
+
+    
+
+
+'''
+    PokeQuery modules.
+'''
+
+def BasicPokeQuery(query_str, pkm=None, movetype='f'):
+    '''
+    Create a basic PokeQuery from string {query_str}.
+    The {pkm} is needed if the entity is Move.
+    Return a callback predicate that accepts one parameter (the entity to be examined).
+    '''
+
+    query_str = str(query_str).lower().strip()
+
+    # Match by dex. For Pokemon
+    if query_str[:3] == 'dex' or query_str.isdigit():
+        dex = int(query_str) if query_str.isdigit() else int(query_str[3:])
+        def predicate(entity):
+            return entity.get('dex') == dex
+    
+    # Match by type. For Pokemon, Move
+    elif query_str in GameMaster.PoketypeList or query_str == 'none':
+        _idx = -1 if query_str == 'none' else GameMaster.InversedPoketypeList[query_str] 
+        def predicate(entity):
+            return _idx in [entity.get('poketype'), entity.get('poketype1'), entity.get('poketype2')]
+
+    # Match by rarity Legendary. For Pokemon
+    elif query_str == "legendary":
+        def predicate(entity):
+            return entity.get('rarity') == 'POKEMON_RARITY_LEGENDARY'
+
+    # Match by rarity Mythical. For Pokemon
+    elif query_str == "mythic" or query_str == "mythical":
+        def predicate(entity):
+            return entity.get('rarity') == 'POKEMON_RARITY_MYTHIC'
+
+    # Match by current availability. For Move
+    elif query_str == "*" or query_str == "*current":
+        movepool = pkm['fastMoves'] if movetype == 'f' else pkm['chargedMoves']
+        def predicate(entity):
+            return entity['name'] in movepool
+
+    # Default: Match by name. For Pokemon, Move
+    else:
+        def predicate(entity):
+            return query_str in entity['name']
+
+    return predicate
+
+
+POKE_QUERY_LOGICAL_OPERATORS = {
+    ':': 0,
+    ',': 0,
+    ';': 0,
+    '&': 1,
+    '|': 1,
+    '!': 2
+}
+
+
+def PokeQuery(query_str, pkm=None, movetype='f'):
+    '''
+    Create a PokeQuery from string {query_str}. Supports logical operators and parenthesis.
+    The {pkm} is needed if the entity if moves.
+    Return a callback predicate that accepts one parameter (the entity to be examined).
+    '''
+
+    global POKE_QUERY_LOGICAL_OPERATORS
+    OPS = POKE_QUERY_LOGICAL_OPERATORS
+
+    # Tokenize the input query string
+    tokens = []
+    tk = ""
+    for c in query_str:
+        if c in OPS or c in ['(', ')']:
+            tk = tk.strip()
+            if tk:
+                tokens.append(tk)
+            tokens.append(c)
+            tk = ""
+        else:
+            tk += c
+    tk = tk.strip()
+    if tk:
+        tokens.append(tk)
+
+    vstack = []
+    opstack = []
+    default_pred = lambda x: False
+    def eval_simple(op, vstack):
+        if OPS[op] == 0:
+            rhs = vstack.pop()
+            lhs = vstack.pop()
+            vstack.append(lambda x: lhs(x) or rhs(x))
+        elif OPS[op] == 1:
+            rhs = vstack.pop()
+            lhs = vstack.pop()
+            vstack.append(lambda x: lhs(x) and rhs(x))
+        elif OPS[op] == 2:
+            rhs = vstack.pop()
+            vstack.append(lambda x: not rhs(x))
+            
+    for tk in tokens:
+        if tk in OPS:
+            while opstack and opstack[-1] != '(' and OPS[opstack[-1]] > OPS[tk]:
+                eval_simple(opstack.pop(), vstack)
+            opstack.append(tk)
+        elif tk == '(':
+            opstack.append(tk)
+        elif tk == ')':
+            while opstack:
+                op =  opstack.pop()
+                if op == '(':
+                    break
+                eval_simple(opstack.pop(), vstack)
+        else:
+            vstack.append(BasicPokeQuery(tk, pkm=pkm, movetype=movetype))
+    while opstack:
+        eval_simple(opstack.pop(), vstack)
+
+    return vstack.pop()
+
+
+
+
+
+
+'''
+    Inferface Classes for engine.
+'''
 
 
 ROLE_PVE_ATTACKER = "ae"
 ROLE_PVP_ATTACKER = "ap"
 ROLE_GYM_DEFENDER = "gd"
 ROLE_RAID_BOSS = "rb"
+
+
+
+class IMove(Move):
+    '''
+    Interface Move class.
+    Convinient for contructing gobattlesim.engine.Move objects.
+    '''
+
+    _binded_gm = GameMaster()
+    
+    @classmethod
+    def bind_game_master(cls, game_master):
+        cls._binded_gm = game_master
+
+
+    def __init__(self, *args, **kwargs):
+        if kwargs.get("pvp", False):
+            search_method = IMove._binded_gm.search_pvp_move
+        else:
+            search_method = IMove._binded_gm.search_pve_move
+        move_dict = kwargs
+        if len(args) > 0:
+            arg = args[0]
+            if isinstance(args[0], str):
+                move_dict = search_method(args[0])
+            elif isinstance(args[0], dict):
+                move_dict = args[0]
+            elif isinstance(args[0], Move) or isinstance(args[0], int):
+                super().__init__(args[0])
+                return
+            else:
+                raise TypeError("Wrong argument type")
+        elif "name" in kwargs:
+            move_dict = search_method(kwargs["name"])
+        move_dict_clean = {}
+        for k, v in move_dict.items():
+            if isinstance(v, int) or isinstance(v, MoveEffect):
+                move_dict_clean[k] = v
+        super().__init__(**move_dict_clean)
+
 
 
 class IPokemon(PvPPokemon):
@@ -464,19 +823,20 @@ class IPokemon(PvPPokemon):
         closest_cp = 0
         min_cpm_i = 0
         max_cpm_i = len(CPMultipliers) - 1
-        while min_cpm_i <= max_cpm_i:
-            if IPokemon.calc_cp(bAtk, bDef, bStm, CPMultipliers[min_cpm_i], 15, 15, 15) > target_cp:
+        while min_cpm_i < max_cpm_i:
+            if IPokemon.calc_cp(bAtk, bDef, bStm, CPMultipliers[min_cpm_i], 15, 15, 15) >= target_cp:
                 break
             min_cpm_i += 1
-        while max_cpm_i > 0:
-            if IPokemon.calc_cp(bAtk, bDef, bStm, CPMultipliers[max_cpm_i], 0, 0, 0) < target_cp:
+        while max_cpm_i > min_cpm_i:
+            if IPokemon.calc_cp(bAtk, bDef, bStm, CPMultipliers[max_cpm_i], 0, 0, 0) <= target_cp:
                 break
             max_cpm_i -= 1
+
         
         for cpm in CPMultipliers[min_cpm_i : max_cpm_i + 1]:
-            for atkiv in range(16):
+            for stmiv in range(16):
                 for defiv in range(16):
-                    for stmiv in range(16):
+                    for atkiv in range(16):
                         cp = IPokemon.calc_cp(bAtk, bDef, bStm, cpm, atkiv, defiv, stmiv)
                         if cp == target_cp:
                             return (cpm, atkiv, defiv, stmiv)
@@ -539,9 +899,9 @@ class IPokemon(PvPPokemon):
                 cpm, atkiv, defiv, stmiv = IPokemon.infer_level_and_IVs(bAtk, bDef, bStm, p_dict["cp"])
             else:
                 cpm = IPokemon._binded_gm.search_cpm(p_dict.get("level", 40))
-                atkiv = p_dict.get("atkiv", 15)
-                defiv = p_dict.get("defiv", 15)
-                stmiv = p_dict.get("stmiv", 15)
+                atkiv = int(p_dict.get("atkiv", 15))
+                defiv = int(p_dict.get("defiv", 15))
+                stmiv = int(p_dict.get("stmiv", 15))
             targets["attack"] = (bAtk + atkiv) * cpm
             targets["defense"] = (bDef + defiv) * cpm
             targets["max_hp"] = int((bStm + stmiv) * cpm)
@@ -557,6 +917,8 @@ class IPokemon(PvPPokemon):
         raw_cmoves = []
         if "cmove" in p_dict:
             raw_cmoves = [p_dict["cmove"]]
+            if "cmove2" in p_dict:
+                raw_cmoves.append(p_dict["cmove2"])
         elif "cmoves" in p_dict:
             raw_cmoves = p_dict["cmoves"]
         self.cmoves = [IMove(cmove, pvp=pvp) for cmove in raw_cmoves]
@@ -565,48 +927,137 @@ class IPokemon(PvPPokemon):
         self.immortal = p_dict.get("immortal", False)
 
         if "pvp_strategy" in p_dict:
-            self.pvp_strategy = p_dict["pvp_strategy"]
+            arg_strategy = p_dict["pvp_strategy"]
+            if isinstance(arg_strategy, str) and arg_strategy.isdigit():
+                arg_strategy = int(arg_strategy)
+            self.pvp_strategy = arg_strategy
 
 
 
-class IMove(Move):
+class IParty(Party):
     '''
-    Interface Move class.
-    Convinient for contructing gobattlesim.engine.Move objects.
+    Interface Party class.
+    Convinient for contructing gobattlesim.engine.Party objects.
     '''
 
-    _binded_gm = GameMaster()
-    
-    @classmethod
-    def bind_game_master(cls, game_master):
-        cls._binded_gm = game_master
-
-
-    def __init__(self, *args, **kwargs):
-        if kwargs.get("pvp", False):
-            search_method = IMove._binded_gm.search_move_pvp
-        else:
-            search_method = IMove._binded_gm.search_move_pve
-        move_dict = kwargs
+    def __init__(self, *arg, **kwargs):
+        party_dict = kwargs
         if len(args) > 0:
-            arg = args[0]
-            if isinstance(args[0], str):
-                move_dict = search_method(args[0])
-            elif isinstance(args[0], dict):
-                move_dict = args[0]
-            elif isinstance(args[0], Move) or isinstance(args[0], int):
+            if isinstance(args[0], dict):
+                party_dict = args[0]
+            elif isinstance(args[0], Party) or isinstance(args[0], int):
                 super().__init__(args[0])
                 return
             else:
                 raise TypeError("Wrong argument type")
-        elif "name" in kwargs:
-            move_dict = search_method(kwargs["name"])
-        move_dict_clean = {}
-        for k, v in move_dict.items():
-            if isinstance(v, int) or isinstance(v, MoveEffect):
-                move_dict_clean[k] = v
-        super().__init__(**move_dict_clean)
+        if "pokemon" in party_dict:
+            arg_pkm = party_dict["pokemon"]
+            if isinstance(arg_pkm, list):
+                party_dict["pokemon"] = [IPokemon(pkm) for pkm in arg_pkm]
+            elif isinstance(arg_pkm, dict) or isinstance(arg_pkm, Pokemon):
+                party_dict["pokemon"] = [IPokemon(arg_pkm)]
+            else:
+                raise TypeError("Wrong type for pokemon")
+        else:
+            raise Exception("Must have pokemon for party")
+        revive_policy = party_dict.get("revive_policy", party_dict.get("revive", 0))
+        if isinstance(revive_policy, str):
+            revive_policy = int(revive_policy)
+        elif isinstance(revive_policy, bool):
+            revive_policy = -1 if revive_policy else 0
+        else:
+            TypeError("Wrong type for revive_policy: {}".format(type(revive_policy)))
+        party_dict["revive_policy"] = revive_policy
+        super().__init__(**party_dict)
+
+
+
+def IPlayer(Player):
+    '''
+    Interface Player class.
+    Convinient for contructing gobattlesim.engine.Player objects.
+    '''
+
+    def __init__(self, *arg, **kwargs):
+        player_dict = kwargs
+        if len(args) > 0:
+            if isinstance(args[0], dict):
+                player_dict = args[0]
+            elif isinstance(args[0], Player) or isinstance(args[0], int):
+                super().__init__(args[0])
+                return
+            else:
+                raise TypeError("Wrong argument type")
+        if "parties" in player_dict or "party" in player_dict:
+            arg_party = player_dict.get("parties", player_dict["party"])
+            if isinstance(arg_party, list):
+                player_dict["parties"] = [IParty(pty) for pty in arg_party]
+            elif isinstance(arg_party, dict) or isinstance(arg_party, Party):
+                player_dict["parties"] = [IParty(arg_party)]
+            else:
+                raise TypeError("Wrong type for parties: {}".format(type(arg_party)))
+        else:
+            raise Exception("Player must have parties")
+        fabm = IPokemon._binded_gm.search_friend(player_dict.get("friend", "none"))
+        player_dict["attack_multiplier"] = fabm * player_dict.get("attack_multiplier", 1)
+        super().__init__(**player_dict)
+
+
+
+class IBattle(Battle):
+    '''
+    Interface Battle class.
+    Convinient for contructing gobattlesim.engine.Battle objects.
+    '''
         
+    def __init__(self, *arg, **kwargs):
+        battle_dict = kwargs
+        if len(args) > 0:
+            if isinstance(args[0], dict):
+                battle_dict = args[0]
+            elif isinstance(args[0], Battle) or isinstance(args[0], int):
+                super().__init__(args[0])
+                return
+            else:
+                raise TypeError("Wrong argument type")
+        if "players" in battle_dict:
+            arg_player = battle_dict["players"]
+            if isinstance(arg_player, list):
+                battle_dict["players"] = [IPlayer(plyr) for plyr in arg_player]
+            elif isinstance(arg_player, dict) or isinstance(arg_player, Player):
+                battle_dict["players"] = [IPlayer(arg_player)]
+            else:
+                raise TypeError("Wrong type for players: {}".format(type(arg_player)))
+        if "weather" in battle_dict:
+            if isinstance(battle_dict["weather"], str):
+                battle_dict["weather"] = _binded_gm.search_weather(battle_dict["weather"])
+        self.__dict__['num_sims'] = max(1, int(battle_dict.get("num_sims", 1)))
+        super().__init__(**battle_dict)
 
 
+    
+    def run(self):
+        '''
+        Run the battle for {num_sims} times and returns the average outcome.
+        '''
+
+        # Run many simulations
+        sum_duration = sum_wins = sum_tdo_percent = sum_deaths = 0
+        for _ in range(self.num_sims):
+            self.init()
+            self.start()
+            battle_outcome = battle.get_outcome(1)
+            sum_duration += battle_outcome.duration
+            sum_wins += 1 if battle_outcome.win else 0
+            sum_tdo_percent += battle_outcome.tdo_percent
+            sum_deaths += battle_outcome.num_deaths
+        return {
+            "Average Duration": sum_duration / self.num_sims,
+            "Win rate": sum_wins / self.num_sims,
+            "Average TDO%": sum_tdo_percent / self.num_sims,
+            "Average #Deaths": sum_deaths / self.num_sims
+        }
+
+
+    
 

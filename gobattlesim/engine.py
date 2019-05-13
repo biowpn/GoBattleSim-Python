@@ -1031,8 +1031,8 @@ class BattleMatrix:
     def __init__(self, pokemon_list, enum_shields=False):
         self.pokemon_instances = [] # Prevent garbage collection
         pokemon_addrs = []
-        for pokemon in pokemon_list:
-            pkm = PvPPokemon(pokemon)
+        for pkm in pokemon_list:
+            assert isinstance(pkm, PvPPokemon)
             self.pokemon_instances.append(pkm)
             pokemon_addrs.append(pkm._addr)
         self.pkm_count = len(pokemon_addrs)

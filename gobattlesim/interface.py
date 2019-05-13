@@ -270,7 +270,7 @@ class GameMaster:
                 move['name'] = GameMaster.rm_udrscrs(moveInfo["uniqueId"], move['movetype'])
                 move['poketype'] = GameMaster.InversedPoketypeList[GameMaster.rm_udrscrs(moveInfo["type"], 't')]
                 move['power'] = int(moveInfo.get("power", 0))
-                move['duration'] = int(moveInfo.get('durationTurns', 0))
+                move['duration'] = int(moveInfo.get('durationTurns', 0)) + 1
                 move['energy'] = int(moveInfo.get("energyDelta", 0))
                 if "buffs" in moveInfo:
                     move['effect'] = {
@@ -926,8 +926,8 @@ class IPokemon(PvPPokemon):
         # Set up other attributes
         self.immortal = p_dict.get("immortal", False)
 
-        if "pvp_strategy" in p_dict:
-            arg_strategy = p_dict["pvp_strategy"]
+        if "pvp_strategy" in p_dict or "strategy2" in p_dict or "shield" in p_dict:
+            arg_strategy = p_dict.get("pvp_strategy", p_dict.get("strategy2", p_dict.get("shield")))
             if isinstance(arg_strategy, str) and arg_strategy.isdigit():
                 arg_strategy = int(arg_strategy)
             self.pvp_strategy = arg_strategy

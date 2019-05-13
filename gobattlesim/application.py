@@ -55,10 +55,15 @@ class GoBattleSimApp:
 
         pokemon_list_batched = []
         for pkm in pokemon_list:
+            if not pkm.get("cmove2", ""):
+                del pkm["cmove2"]
+            for num_attr in ["cp", "level", "atkiv", "defiv", "stmiv"]:
+                if num_attr in pkm:
+                    pkm[num_attr] = float(pkm[num_attr])
             pokemon_list_batched.extend(self.game_master.batch_pokemon(pkm))
         pokemon_list_unique = get_unique_pokemon(pokemon_list_batched)
         
-        bm = BattleMatrix([IPokemon(pkm) for pkm in pokemon_list_unique], enum_shields)
+        bm = BattleMatrix([IPokemon(pkm, pvp=True) for pkm in pokemon_list_unique], enum_shields)
         bm.run()
 
         return {

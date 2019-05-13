@@ -12,11 +12,16 @@ sample_request_1 = {
     'reqInput': {
         "pokemonList": [
           {
-            "name": "(fighting, psychic, dark) & !legendary & !mythical",
-            "fmove": "*",
-            "cmove": "*",
-            "cmove2": "*",
-            "cp": 1500
+            "name": "dialga",
+            "fmove": "dragon breath",
+            "cmove": "iron head",
+            "cmove2": "thunder"
+          },
+          {
+            "name": "groudon",
+            "fmove": "mud shot",
+            "cmove": "earthquake",
+            "cmove2": "solar beam"
           }
         ],
         "enumShields": False
@@ -46,7 +51,7 @@ sample_request_2 = {
 
 
 
-resp = app.handle_request(sample_request_2)
+resp = app.handle_request(sample_request_1)
 
 
 print("reqInput:")

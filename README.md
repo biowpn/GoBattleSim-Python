@@ -13,6 +13,8 @@ A Pokemon Go Battle Simulator (GoBattleSim) with Python API.
 
 ### Installing
 
+The below instructions will get you a local version of GoBattleSim engine.
+
 First, install the package using pip in command line window:
 
 ```
@@ -65,7 +67,7 @@ result = gbs.quick_raid_battle(
         "cmove": "crunch",
         "tier": 4
     },
-    num_players=2
+    player_multiplier=2
 )
 
 print("Machamp duo T4 Tyranitar:")
@@ -77,12 +79,11 @@ The `result` is a dict containing some performance metrics, such as "Average TDO
 
 ```
 Machamp duo T4 Tyranitar:
-{'Average Duration': 130157.966, 'Win rate': 1.0, 'Average TDO%': 1.010376666666664, 'Average #Deaths': 3.506}
+{'win': 1.0, 'duration': 130157.966, 'tdo_percent': 1.010376666666664, 'num_deaths': 3.506}
 ```
 
 One may find `gobattlesim.interface.quick_raid_battle` (and `gobattlesim.interface.quick_pvp_battle`) rather limited, 
-and may want more control on the simulations. The `gobattlesim.engine` is for this purpose. 
-In fact, `gobattlesim.interface` is built on top of `gobattlesim.engine`. Note that, without the game master, you need to specify all sorts of paramters yourself.
+and may want more control on the simulations. If so, the `gobattlesim.engine` is best for this purpose.
 
 More [examples](https://github.com/ymenghank/GoBattleSim-Python/tree/master/examples) of using `gobattlesim.engine` alone to run simulations have been given in the repo.
 

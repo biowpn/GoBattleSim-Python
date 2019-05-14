@@ -19,7 +19,7 @@ result = gbs.quick_raid_battle(
         "cmove": "crunch",
         "tier": 4
     },
-    num_players=2
+    player_multiplier=2
 )
 
 print("Machamp duo T4 Tyranitar:")

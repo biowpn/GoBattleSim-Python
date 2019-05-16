@@ -27,7 +27,6 @@ else:
 
 
 
-
 '''
 Global Constants
 '''
@@ -262,13 +261,13 @@ class Move:
     lib.Move_new.argtypes = [c_int, c_int, c_int, c_int, c_int]
     lib.Move_new.restype = c_void_p
     def __init__(self, _src=None, **kwargs):
+        self.__dict__["_locked"] = True
         init_params = ["poketype", "power", "energy", "duration", "dws"]
         if _src is not None:
             if isinstance(_src, Move):
                 self.__dict__["_addr"] = _src._addr
             else:
                 self.__dict__["_addr"] = _src
-            self.__dict__["_locked"] = True
         else:
             self.__dict__["_addr"] = lib.Move_new(
                 kwargs.get("poketype", 0),
@@ -285,7 +284,7 @@ class Move:
     lib.Move_delete.argtypes = [c_void_p]
     lib.Move_delete.restype = c_void_p
     def __del__(self):
-        if not self._locked:
+        if self.__dict__.get("_locked") == False:
             lib.Move_delete(self._addr)
 
 
@@ -329,19 +328,18 @@ class Move:
 
 
 
-
 class Pokemon:
         
     lib.Pokemon_new.argtypes = [c_int, c_int, c_double, c_double, c_int]
     lib.Pokemon_new.restype = c_void_p
     def __init__(self, _src=None, **kwargs):
+        self.__dict__["_locked"] = True
         init_params = ["poketype1", "poketype2", "attack", "defense", "max_hp"]
         if _src is not None:
             if isinstance(_src, Pokemon):
                 self.__dict__["_addr"] = _src._addr
             else:
                 self.__dict__["_addr"] = _src
-            self.__dict__["_locked"] = True
         else:
             self.__dict__["_addr"] = lib.Pokemon_new(
                 kwargs.get("poketype1", -1),
@@ -358,7 +356,7 @@ class Pokemon:
     lib.Pokemon_delete.argtypes = [c_void_p]
     lib.Pokemon_delete.restype = c_void_p
     def __del__(self):
-        if not self._locked:
+        if self.__dict__.get("_locked") == False:
             lib.Pokemon_delete(self._addr)
 
     lib.Pokemon_get_fmove.argtypes = [c_void_p, c_int]
@@ -428,12 +426,12 @@ class Party:
     lib.Party_new.argtypes = []
     lib.Party_new.restype = c_void_p
     def __init__(self, _src=None, **kwargs):
+        self.__dict__["_locked"] = True
         if _src is not None:
             if isinstance(_src, Party):
                 self.__dict__["_addr"] = _src._addr
             else:
                 self.__dict__["_addr"] = _src
-            self.__dict__["_locked"] = True
         else:
             self.__dict__["_addr"] = lib.Party_new()
             self.__dict__["_locked"] = False
@@ -444,7 +442,7 @@ class Party:
     lib.Party_delete.argtypes = [c_void_p]
     lib.Party_delete.restype = c_void_p
     def __del__(self):
-        if not self._locked:
+        if self.__dict__.get("_locked") == False:
             lib.Party_delete(self._addr)
 
 
@@ -507,12 +505,12 @@ class Player:
     lib.Player_new.argtypes = []
     lib.Player_new.restype = c_void_p
     def __init__(self, _src=None, **kwargs):
+        self.__dict__["_locked"] = True
         if _src is not None:
             if isinstance(_src, Player):
                 self.__dict__["_addr"] = _src._addr
             else:
                 self.__dict__["_addr"] = _src
-            self.__dict__["_locked"] = True
         else:
             self.__dict__["_addr"] = lib.Player_new()
             self.__dict__["_locked"] = False
@@ -525,7 +523,7 @@ class Player:
     lib.Player_delete.argtypes = [c_void_p]
     lib.Player_delete.restype = c_void_p
     def __del__(self):
-        if not self._locked:
+        if self.__dict__.get("_locked") == False:
             lib.Player_delete(self._addr)
 
 
@@ -631,12 +629,12 @@ class Strategy:
     lib.Strategy_new.argtypes = []
     lib.Strategy_new.restype = c_void_p
     def __init__(self, _src=None, **kwargs):
+        self.__dict__["_locked"] = True
         if _src is not None:
             if isinstance(_src, Strategy):
                 self.__dict__["_addr"] = _src._addr
             else:
                 self.__dict__["_addr"] = _src
-            self.__dict__["_locked"] = True
         else:
             self.__dict__["_addr"] = lib.Strategy_new()
             self.__dict__["_locked"] = False
@@ -647,7 +645,7 @@ class Strategy:
     lib.Strategy_delete.argtypes = [c_void_p]
     lib.Strategy_delete.restype = c_void_p
     def __del__(self):
-        if not self._locked:
+        if self.__dict__.get("_locked") == False:
             lib.Strategy_delete(self._addr)
 
 
@@ -676,12 +674,12 @@ class Battle:
     lib.Battle_new.argtypes = []
     lib.Battle_new.restype = c_void_p
     def __init__(self, _src=None, **kwargs):
+        self.__dict__["_locked"] = True
         if _src is not None:
             if isinstance(_src, Battle):
                 self.__dict__["_addr"] = _src._addr
             else:
                 self.__dict__["_addr"] = _src
-            self.__dict__["_locked"] = True
         else:
             self.__dict__["_addr"] = lib.Battle_new()
             self.__dict__["_locked"] = False
@@ -692,7 +690,8 @@ class Battle:
     lib.Battle_delete.argtypes = [c_void_p]
     lib.Battle_delete.restype = c_void_p
     def __del__(self):
-        lib.Battle_delete(self._addr)
+        if self.__dict__.get("_locked") == False:
+            lib.Battle_delete(self._addr)
 
         
     lib.Battle_get_player.argtypes = [c_void_p, c_int]
@@ -876,12 +875,12 @@ class PvPStrategy:
     lib.PvPStrategy_new.argtypes = []
     lib.PvPStrategy_new.restype = c_void_p
     def __init__(self, _src=None, **kwargs):
+        self.__dict__["_locked"] = True
         if _src is not None:
             if isinstance(_src, PvPStrategy):
                 self.__dict__["_addr"] = _src._addr
             else:
                 self.__dict__["_addr"] = _src
-            self.__dict__["_locked"] = True
         else:
             self.__dict__["_addr"] = lib.PvPStrategy_new()
             self.__dict__["_locked"] = False
@@ -892,7 +891,7 @@ class PvPStrategy:
     lib.PvPStrategy_delete.argtypes = [c_void_p]
     lib.PvPStrategy_delete.restype = c_void_p
     def __del__(self):
-        if not self._locked:
+        if self.__dict__.get("_locked") == False:
             lib.PvPStrategy_delete(self._addr)
 
 
@@ -923,13 +922,13 @@ class PvPPokemon(Pokemon):
     lib.PvPPokemon_new.argtypes = [c_int, c_int, c_double, c_double, c_int]
     lib.PvPPokemon_new.restype = c_void_p
     def __init__(self, _src=None, **kwargs):
+        self.__dict__["_locked"] = True
         init_params = ["poketype1", "poketype2", "attack", "defense", "max_hp"]
         if _src is not None:
             if isinstance(_src, PvPPokemon):
                 self.__dict__["_addr"] = _src._addr
             else:
                 self.__dict__["_addr"] = _src
-            self.__dict__["_locked"] = True
         else:
             self.__dict__["_addr"] = lib.PvPPokemon_new(
                 kwargs.get("poketype1", -1),
@@ -946,7 +945,7 @@ class PvPPokemon(Pokemon):
     lib.PvPPokemon_delete.argtypes = [c_void_p]
     lib.PvPPokemon_delete.restype = c_void_p
     def __del__(self):
-        if not self._locked:
+        if self.__dict__.get("_locked") == False:
             lib.PvPPokemon_delete(self._addr)
 
 

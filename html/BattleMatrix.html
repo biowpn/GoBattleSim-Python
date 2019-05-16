@@ -1,0 +1,263 @@
+
+<!DOCTYPE HTML>
+<html>
+
+<head>
+	<title> GoBattleSim Battle Matrix </title>
+	
+	<link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+
+	<meta charset="utf-8">
+    <meta name="viewport" 
+          content="width=device-width">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+	<link href="https://code.jquery.com/ui/jquery-ui-git.css" rel="stylesheet">
+	
+    <script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+	<script type="text/javascript" src="https://code.jquery.com/ui/jquery-ui-git.js"></script>
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+	
+	<script src="./util.js"></script>
+	
+	<style>
+		.center_stuff {
+			width: 100%;
+			text-align: center;
+		}
+		
+		.text_box {
+			width: 100%;
+		}
+		
+	</style>
+	
+	<script>
+		var GameMaster = {};
+		var currentMatrix = [[]];
+		var currentPokemonList = [[]];
+		
+		
+		function battleMatrixInit(){
+			$("#cbox-container").controlgroup();
+			$("#button-run").button();
+			$("#button-run").on("click", battleMatrixSubmit);
+		}
+		
+		function parseCSVRow(str, deli, echar){
+			var data = [];
+			var word = "";
+			var escaped = false;
+			for (var i = 0; i < str.length; i++){
+				if (str[i] == echar){
+					if (escaped){
+						data.push(word);
+						word = "";
+						escaped = false;
+						++i;
+					}else{
+						escaped = true;
+					}
+				}else if (str[i] == deli && !escaped){
+					data.push(word);
+					word = "";
+				}else{
+					word += str[i];
+				}
+			}
+			data.push(word);
+			return data;
+		}
+		
+		function makeAndDownloadCSV(arrayOfLines, filename) {
+			filename = filename || "my_data.csv";
+			var lineArray = [];
+			arrayOfLines.forEach(function (infoArray, index) {
+				lineArray.push(infoArray.join(","));
+			});
+			var csvContent = lineArray.join("\n");
+
+			var blob = new Blob([ csvContent ], {
+				type : "application/csv;charset=utf-8;"
+			});
+
+			if (window.navigator.msSaveBlob) {
+				// FOR IE BROWSER
+				navigator.msSaveBlob(blob, filename);
+			} else {
+				// FOR OTHER BROWSERS
+				var link = document.createElement("a");
+				var csvUrl = URL.createObjectURL(blob);
+				link.href = csvUrl;
+				link.style = "visibility:hidden";
+				link.download = filename;
+				document.body.appendChild(link);
+				link.click();
+				document.body.removeChild(link);
+			}
+		}
+		
+		function makeAndDisplay(arrayOfLines, deli, textareaEl) {
+			var lines = [];
+			for (var i = 0; i < arrayOfLines.length; ++i) {
+				lines.push(arrayOfLines[i].join(deli));
+			}
+			$(textareaEl).text(lines.join('\n'));
+		}
+		
+		function battleMatrixSubmit(){
+			var rawInput = $("#battleMatrix-input").val().trim().split("\n");
+			var deli;
+			if (rawInput[0].includes("\t"))
+			{
+				deli = "\t";
+			}else{
+				deli = ",";
+			}
+			
+			var attributes = parseCSVRow(rawInput[0], deli, '"');
+			var pokemonVector = [];
+			for (var i = 1; i < rawInput.length; i++){
+				var rowData = parseCSVRow(rawInput[i], deli, '"');
+				var pokemon = {};
+				for (var j = 0; j < attributes.length; j++){
+					pokemon[attributes[j]] = try_parse((rowData[j] || ""));
+				}
+				pokemonVector.push(pokemon);
+			}
+			
+			var reqInput = {
+				"pokemonList": pokemonVector,
+				"enumShields": document.getElementById("battleMatrix-enum-shields").checked,
+				"GameMaster": GameMaster
+			};
+			
+			GBS.submit("BattleMatrix", reqInput, function(reqOutput){
+				var out_pkm_list = reqOutput["pokemonList"];
+				currentMatrix = reqOutput["matrix"];
+				
+				var pkm_attrs = [];
+				if (out_pkm_list.length > 0){
+					for (var a in out_pkm_list[0]){
+						pkm_attrs.push(a);
+					}
+				}else{
+					return;
+				}
+				currentPokemonList = [pkm_attrs];
+				for (var i = 0; i < out_pkm_list.length; i++){
+					var row = [];
+					for (var j = 0; j < pkm_attrs.length; j++){
+						row.push(out_pkm_list[i][pkm_attrs[j]] || "");
+					}
+					currentPokemonList.push(row);
+				}
+				if (currentPokemonList.length < 100) {
+					makeAndDisplay(currentPokemonList, deli, "#battleMatrix-output-pokemon-list");
+				} else {
+					$("#battleMatrix-output-pokemon-list").text("Pokemon List too large to display. Please download as .csv");
+				}
+				
+				if (currentMatrix.length < 100) {
+					makeAndDisplay(currentMatrix, deli, "#battleMatrix-output");
+				} else {
+					$("#battleMatrix-output").text("Matrix too large to display. Please download as .csv");
+				}
+			});
+		}
+
+
+		$(document).ready(function(){
+			GBS.submit("GetGameMaster", {}, function(reqOutput){
+				GameMaster = reqOutput;
+			}, true);
+			
+			battleMatrixInit();
+			
+			$("#example-nightmare").on("click", function(){
+				$("#battleMatrix-input").text('name\tfmove\tcmove\tcmove2\tcp\n"(psychic, dark, fighting) & !legendary & !mythical"\t*\t*\t*\t1500');
+			});
+			
+			$("#example-regional").on("click", function(){
+				$("#battleMatrix-input").text('name\tfmove\tcmove\tcmove2\tcp\n"!bug & !normal & !legendary & !mythical"\t*\t*\t*\t1500');
+			});
+			
+			$("#button-download-pokemon").on("click", function(){
+				makeAndDownloadCSV(currentPokemonList, "pokemon_list.csv");
+			});
+			
+			$("#button-download-matrix").on("click", function(){
+				makeAndDownloadCSV(currentMatrix, "matrix.csv");
+			});
+		});
+		
+	
+	</script>
+	
+
+</head>
+
+
+<body>
+	<h1> GoBattleSim Battle Matrix </h1>
+	
+	
+	<div id='battleMatrix' class="container">
+
+		<ol>
+			<li>The first row must be the attributes of a Pokemon</li>
+			<li>Fields are separated by TAB or comma. To escape the delimeter, surround the field by double quotes</li>
+			<li><a href="https://youtu.be/Dw2Cw3ybeVs"><b>Video Tutorial</b></a></li>
+			<li>Examples: 
+				<a style="cursor: pointer;" id="example-nightmare"> <b>Nightmare Cup</b> </a>,
+				<a style="cursor: pointer;" id="example-regional"> <b>Regionals Cup</b> </a>
+			</li>
+		</ol>
+		
+		<h3>Input</h3>
+		
+		<textarea id="battleMatrix-input" rows="10" class="text_box">name,fmove,cmove,cmove2,cp</textarea>
+		
+		<br>
+		
+		<div class="row">
+			<div class="col-sm-6">
+				<button class="center_stuff btn-primary" id="button-run">Run</button>
+			</div>
+			<div class="col-sm-6">
+				<div id="cbox-container"><label class="center_stuff">Enum Shield Strat<input id="battleMatrix-enum-shields" type="checkbox"></input></label></div>
+			</div>
+		</div>
+
+		<br>
+		
+		<h3>Output</h3>
+		
+		<div class="row">
+			<div class="col-sm-6">
+				<h4>Pokemon List</h4>
+			</div>
+			<div class="col-sm-6">
+				<button class="center_stuff btn btn-success" id="button-download-pokemon">Download Pokemon List</button>
+			</div>
+		</div>
+
+		<textarea id="battleMatrix-output-pokemon-list" rows="10" class="text_box"></textarea>
+		
+		<div class="row">
+			<div class="col-sm-6">
+				<h4>Matrix</h4>
+			</div>
+			<div class="col-sm-6">
+				<button class="center_stuff btn btn-success" id="button-download-matrix">Download Matrix</button>
+			</div>
+		</div>
+		
+		<textarea id="battleMatrix-output" rows="10" class="text_box"></textarea>
+
+	</div>
+
+</body>
+
+</html>
+
+

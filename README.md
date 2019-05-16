@@ -11,6 +11,8 @@ A Pokemon Go Battle Simulator (GoBattleSim) with Python API.
 
 64-bit Python 3.5+
 
+For deployment, [sanic](https://github.com/huge-success/sanic)
+
 ### Installing
 
 The below instructions will get you a local version of GoBattleSim engine.

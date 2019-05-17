@@ -1,12 +1,12 @@
 
-var GBS = {};
-var UI = {};
-var DialogStack = [];
+window.GBS = window.GBS || {};
+window.UI = window.UI || {};
+window.DialogStack = window.DialogStack || [];
 
 
 GBS.RequestId = 0;
 GBS.Processing = 0;
-var HostURL = "./";
+GBS.HostURL = "./";
 
 
 
@@ -37,17 +37,11 @@ UI.sendFeedbackDialog = function(message, dialogTitle, onOK){
 }
 
 
-GBS.submit = function(reqType, reqInput, reqOutput_handler, no_dialog) {
+GBS.submit = function(reqType, reqInput, reqOutput_handler, oncomplete) {
 	if (GBS.Processing) {
-		if (!no_dialog) {
-			UI.sendFeedbackDialog("Request already pending");
-		}
 		return;
 	}
 	GBS.Processing = 1;
-	if (!no_dialog) {
-		UI.sendFeedbackDialog("Running...");
-	}
 	
 	var request_json = {
 		"reqId": GBS.RequestId,
@@ -56,7 +50,7 @@ GBS.submit = function(reqType, reqInput, reqOutput_handler, no_dialog) {
 	};
 	
 	$.ajax({
-		url: HostURL,
+		url: GBS.HostURL,
 		type: "POST",
 		dataType: "json",
 		data: JSON.stringify(request_json),
@@ -73,10 +67,12 @@ GBS.submit = function(reqType, reqInput, reqOutput_handler, no_dialog) {
 			}
 			UI.sendFeedbackDialog(errorThrown);
 		},
-		
 		complete: function(){
 			GBS.RequestId++;
 			GBS.Processing = 0;
+			if (oncomplete) {
+				oncomplete();
+			}
 		}
 	});
 }

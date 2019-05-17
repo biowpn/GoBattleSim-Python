@@ -464,6 +464,8 @@ class GameMaster:
         cmove_matches = []
         cmove2_matches = []
         has_cmove2 = "cmove2" in pkm_dict
+        pkm_dict['fmove'] = pkm_dict.get("fmove", "*")
+        pkm_dict['cmove'] = pkm_dict.get("cmove", "*")
 
         # Try for direct match first. Only if no direct match will the program try for query match.
         try:
@@ -530,10 +532,21 @@ def BasicPokeQuery(query_str, pkm=None, movetype="fast"):
     Return a callback predicate that accepts one parameter (the entity to be examined).
     '''
 
-    query_str = str(query_str).lower().strip()
+    query_str = str(query_str).lower().strip(" *")
+
+    
+    # Default predicate for empty query
+    if query_str == "":
+        if pkm is not None:
+            pd1 = BasicPokeQuery("current", pkm, movetype)
+            pd2 = BasicPokeQuery("legacy", pkm, movetype)
+            pd3 = BasicPokeQuery("exclusive", pkm, movetype)
+            return lambda x: (pd1(x) or pd2(x) or pd3(x))
+        else:
+            return lambda x: True
 
     # Match by dex. For Pokemon
-    if query_str[:3] == 'dex' or query_str.isdigit():
+    elif query_str[:3] == 'dex' or query_str.isdigit():
         dex = int(query_str) if query_str.isdigit() else int(query_str[3:])
         def predicate(entity):
             return entity.get('dex') == dex
@@ -554,24 +567,18 @@ def BasicPokeQuery(query_str, pkm=None, movetype="fast"):
         def predicate(entity):
             return entity.get('rarity') == 'POKEMON_RARITY_MYTHIC'
 
-    elif query_str == "*":
-        if pkm is not None:
-            return BasicPokeQuery("*current", pkm, movetype)
-        else:
-            return lambda x: True
-
     # Match by current move availability
-    elif query_str == "*current":
+    elif query_str == "current":
         movepool = pkm.get(movetype + "Moves", [])
         def predicate(entity):
             return entity['name'] in movepool
 
-    elif query_str == "*legacy" or query_str == "legacy":
+    elif query_str == "legacy":
         movepool = pkm.get(movetype + "Moves_legacy", [])
         def predicate(entity):
             return entity['name'] in movepool
 
-    elif query_str == "*exclusive" or query_str == "exclusive":
+    elif query_str == "exclusive":
         movepool = pkm.get(movetype + "Moves_exclusive", [])
         def predicate(entity):
             return entity['name'] in movepool

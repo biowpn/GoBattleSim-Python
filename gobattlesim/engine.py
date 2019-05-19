@@ -980,6 +980,27 @@ class SimplePvPBattle:
         lib.SimplePvPBattle_delete(self._addr)
 
 
+    lib.SimplePvPBattle_set_num_shields_max.argtypes = [c_void_p, c_int, c_int]
+    lib.SimplePvPBattle_set_num_shields_max.restype = c_void_p
+    def set_num_shields_max(self, num_shields_0, num_shields_1):
+        '''
+        Set the maximum number of shields allowed for both Pokemon.
+        '''
+
+        lib.SimplePvPBattle_set_num_shields_max(self._addr, num_shields_0, num_shields_1)
+
+
+    lib.SimplePvPBattle_set_strategy.argtypes = [c_void_p, c_int, c_void_p]
+    lib.SimplePvPBattle_set_strategy.restype = c_void_p
+    def set_strategy(self, pkm_idx, strategy):
+        '''
+        Set custom strategy for Pokemon with index {pkm_idx}.
+        '''
+
+        assert isinstance(strategy, PvPStrategy)
+        lib.SimplePvPBattle_set_strategy(self._addr, pkm_idx, pointer(strategy))
+
+
     lib.SimplePvPBattle_init.argtypes = [c_void_p]
     lib.SimplePvPBattle_init.restype = c_void_p
     def init(self):
@@ -1037,29 +1058,7 @@ class BattleMatrix:
     lib.BattleMatrix_delete.argtypes = [c_void_p]
     lib.BattleMatrix_delete.restype = c_void_p
     def __del__(self):
-        lib.BattleMatrix_delete(self._addr)
-
-
-    lib.SimplePvPBattle_set_num_shields_max.argtypes = [c_void_p, c_int, c_int]
-    lib.SimplePvPBattle_set_num_shields_max.restype = c_void_p
-    def set_num_shields_max(self, num_shields_0, num_shields_1):
-        '''
-        Set the maximum number of shields allowed for both Pokemon.
-        '''
-
-        lib.SimplePvPBattle_set_num_shields_max(self._addr, num_shields_0, num_shields_1)
-
-
-    lib.SimplePvPBattle_set_strategy.argtypes = [c_void_p, c_int, c_void_p]
-    lib.SimplePvPBattle_set_strategy.restype = c_void_p
-    def set_strategy(self, pkm_idx, strategy):
-        '''
-        Set custom strategy for Pokemon with index {pkm_idx}.
-        '''
-
-        assert isinstance(strategy, PvPStrategy)
-        lib.SimplePvPBattle_set_strategy(self._addr, pkm_idx, pointer(strategy))
-    
+        lib.BattleMatrix_delete(self._addr)    
 
         
     lib.BattleMatrix_run.argtypes = [c_void_p]

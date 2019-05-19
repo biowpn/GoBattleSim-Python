@@ -949,16 +949,11 @@ class PvPPokemon(Pokemon):
             lib.PvPPokemon_delete(self._addr)
 
 
-    lib.PvPPokemon_set_pvp_strategy.argtypes = [c_void_p, c_int]
-    lib.PvPPokemon_set_pvp_strategy.restype = c_void_p
-    lib.PvPPokemon_set_custom_pvp_strategy.argtypes = [c_void_p, c_void_p]
-    lib.PvPPokemon_set_custom_pvp_strategy.restype = c_void_p
+    lib.PvPPokemon_set_num_shields.argtypes = [c_void_p, c_int]
+    lib.PvPPokemon_set_num_shields.restype = c_void_p
     def __setattr__(self, name, value):
-        if name == "pvp_strategy":
-            if isinstance(value, PvPStrategy):
-                lib.PvPPokemon_set_custom_pvp_strategy(self._addr, value._addr)
-            else:
-                lib.PvPPokemon_set_pvp_strategy(self._addr, value)
+        if name == "num_shields":
+            lib.PvPPokemon_set_num_shields(self._addr, value)
         else:
             super().__setattr__(name, value)
 
@@ -1043,6 +1038,28 @@ class BattleMatrix:
     lib.BattleMatrix_delete.restype = c_void_p
     def __del__(self):
         lib.BattleMatrix_delete(self._addr)
+
+
+    lib.SimplePvPBattle_set_num_shields_max.argtypes = [c_void_p, c_int, c_int]
+    lib.SimplePvPBattle_set_num_shields_max.restype = c_void_p
+    def set_num_shields_max(self, num_shields_0, num_shields_1):
+        '''
+        Set the maximum number of shields allowed for both Pokemon.
+        '''
+
+        lib.SimplePvPBattle_set_num_shields_max(self._addr, num_shields_0, num_shields_1)
+
+
+    lib.SimplePvPBattle_set_strategy.argtypes = [c_void_p, c_int, c_void_p]
+    lib.SimplePvPBattle_set_strategy.restype = c_void_p
+    def set_strategy(self, pkm_idx, strategy):
+        '''
+        Set custom strategy for Pokemon with index {pkm_idx}.
+        '''
+
+        assert isinstance(strategy, PvPStrategy)
+        lib.SimplePvPBattle_set_strategy(self._addr, pkm_idx, pointer(strategy))
+    
 
         
     lib.BattleMatrix_run.argtypes = [c_void_p]

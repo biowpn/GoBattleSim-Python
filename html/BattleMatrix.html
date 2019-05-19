@@ -66,12 +66,16 @@
 			$("#button-run").button();
 			$("#button-run").on("click", battleMatrixSubmit);
 			
+			$("#example-rainbow").on("click", function(){
+				$("#battleMatrix-input").text('name\tfmove\tcmove\tcmove2\tcp\n"dex1-251 & (fire, electric, bug, brass, water)"\t*\t*\t*current\t1500');
+			});
+			
 			$("#example-nightmare").on("click", function(){
-				$("#battleMatrix-input").text('name\tfmove\tcmove\tcmove2\tcp\n"(psychic, dark, fighting) & !legendary & !mythical"\t*\t*\t*\t1500');
+				$("#battleMatrix-input").text('name\tfmove\tcmove\tcmove2\tcp\n"(psychic, dark, fighting) & !legendary & !mythical"\t*\t*\t*current\t1500');
 			});
 			
 			$("#example-regional").on("click", function(){
-				$("#battleMatrix-input").text('name\tfmove\tcmove\tcmove2\tcp\n"!bug & !normal & !legendary & !mythical"\t*\t*\t*\t1500');
+				$("#battleMatrix-input").text('name\tfmove\tcmove\tcmove2\tcp\n"!(bug, normal, psychic, water, legendary, mythical)"\t*\t*\t*current\t1500');
 			});
 			
 			$("#button-download-pokemon").on("click", function(){
@@ -245,6 +249,7 @@
 			<li>Fields are separated by TAB or comma. To escape the delimeter, surround the field by double quotes</li>
 			<li><a href="https://youtu.be/Dw2Cw3ybeVs"><b>Video Tutorial</b></a>; 
 				Examples: 
+				<a style="cursor: pointer;" id="example-rainbow"> <b>Rainbow Cup</b> </a>,
 				<a style="cursor: pointer;" id="example-nightmare"> <b>Nightmare Cup</b> </a>,
 				<a style="cursor: pointer;" id="example-regional"> <b>Regionals Cup</b> </a>
 			</li>

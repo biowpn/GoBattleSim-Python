@@ -22,7 +22,10 @@ for fname in os.listdir(app.config.ROOT_DIR):
 
 
 
-GBS.set_default_game_master("data/GAME_MASTER.json")
+with open('data/GBS_GAME_MASTER.json', encoding='utf-8') as fd:
+    game_master = GBS.GameMaster()
+    game_master.from_json(json.load(fd))
+    GBS.set_default_game_master(game_master)
 
 
 class SimpleView(sanic.views.HTTPMethodView):

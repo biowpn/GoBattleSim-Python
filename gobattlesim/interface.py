@@ -546,10 +546,17 @@ def BasicPokeQuery(query_str, pkm=None, movetype="fast"):
             return lambda x: True
 
     # Match by dex. For Pokemon
-    elif query_str[:3] == 'dex' or query_str.isdigit():
-        dex = int(query_str) if query_str.isdigit() else int(query_str[3:])
+    elif query_str.isdigit():
+        dex = int(query_str)
         def predicate(entity):
             return entity.get('dex') == dex
+        
+    elif query_str[:3] == 'dex':
+        num_part = query_str[3:]
+        if '-' in num_part:
+            min_dex, max_dex = [int(v.strip()) for v in num_part.split('-')][:2]
+        def predicate(entity):
+            return min_dex <= entity.get('dex') <= max_dex
     
     # Match by type. For Pokemon, Move
     elif query_str in GameMaster.PoketypeList or query_str == 'none':
@@ -652,10 +659,10 @@ def PokeQuery(query_str, pkm=None, movetype="fast"):
             opstack.append(tk)
         elif tk == ')':
             while opstack:
-                op =  opstack.pop()
+                op = opstack.pop()
                 if op == '(':
                     break
-                eval_simple(opstack.pop(), vstack)
+                eval_simple(op, vstack)
         else:
             vstack.append(BasicPokeQuery(tk, pkm=pkm, movetype=movetype))
     while opstack:
@@ -687,7 +694,8 @@ class IMove(Move):
     '''
 
 
-    def __init__(self, *args, game_master=GameMaster.CurrentInstance, **kwargs):
+    def __init__(self, *args, game_master=None, **kwargs):
+        game_master = game_master or GameMaster.CurrentInstance
         if kwargs.get("pvp", False):
             search_method = game_master.search_pvp_move
         else:
@@ -760,7 +768,7 @@ class IPokemon(PvPPokemon):
 
     
 
-    def __init__(self, *args, game_master=GameMaster.CurrentInstance, **kwargs):
+    def __init__(self, *args, game_master=None, **kwargs):
         '''
         If there is a positional argument, it must be an Pokemon/IPokemon instance, or an address to one.
 
@@ -778,9 +786,9 @@ class IPokemon(PvPPokemon):
                 (name, fmove, cmove, cp, role=ROLE_GYM_DEFENDER)
         '''
 
+        game_master = game_master or GameMaster.CurrentInstance
         self.__dict__['tier'] = None
         p_dict = kwargs
-
         if len(args):
             if isinstance(args[0], Pokemon) or isinstance(args[0], int):
                 super.__init__(args[0])
@@ -842,11 +850,9 @@ class IPokemon(PvPPokemon):
         # Set up other attributes
         self.immortal = p_dict.get("immortal", False)
 
-        if "pvp_strategy" in p_dict or "strategy2" in p_dict or "shield" in p_dict:
-            arg_strategy = p_dict.get("pvp_strategy", p_dict.get("strategy2", p_dict.get("shield")))
-            if isinstance(arg_strategy, str) and arg_strategy.isdigit():
-                arg_strategy = int(arg_strategy)
-            self.pvp_strategy = arg_strategy
+        if "num_shields" in p_dict or "strategy2" in p_dict or "shield" in p_dict:
+            arg_num_shields = p_dict.get("num_shields", p_dict.get("strategy2", p_dict.get("shield")))
+            self.num_shields = arg_num_shields
 
 
 
@@ -856,7 +862,8 @@ class IParty(Party):
     Convinient for contructing gobattlesim.engine.Party objects.
     '''
 
-    def __init__(self, *arg, game_master=GameMaster.CurrentInstance, **kwargs):
+    def __init__(self, *arg, game_master=None, **kwargs):
+        game_master = game_master or GameMaster.CurrentInstance
         party_dict = kwargs
         if len(args) > 0:
             if isinstance(args[0], dict):
@@ -894,7 +901,8 @@ def IPlayer(Player):
     Convinient for contructing gobattlesim.engine.Player objects.
     '''
 
-    def __init__(self, *arg, game_master=GameMaster.CurrentInstance, **kwargs):
+    def __init__(self, *arg, game_master=None, **kwargs):
+        game_master = game_master or GameMaster.CurrentInstance
         player_dict = kwargs
         if len(args) > 0:
             if isinstance(args[0], dict):
@@ -926,7 +934,8 @@ class IBattle(Battle):
     Convinient for contructing gobattlesim.engine.Battle objects.
     '''
         
-    def __init__(self, *arg, game_master=GameMaster.CurrentInstance, **kwargs):
+    def __init__(self, *arg, game_master=None, **kwargs):
+        game_master = game_master or GameMaster.CurrentInstance
         battle_dict = kwargs
         if len(args) > 0:
             if isinstance(args[0], dict):
@@ -991,12 +1000,13 @@ def quick_raid_battle(attacker,
                       weather="extreme",
                       num_sims=2000,
                       random_seed=0,
-                      game_master=GameMaster.CurrentInstance):
+                      game_master=None):
     '''
     Simulate a simple raid battle.
     Returns a dict of average outcome.
     '''
-
+    
+    game_master = game_master or GameMaster.CurrentInstance
     set_random_seed(random_seed)
 
     pkm_list = []

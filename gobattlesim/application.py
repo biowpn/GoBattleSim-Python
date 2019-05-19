@@ -9,12 +9,14 @@ from .interface import *
 def set_default_game_master(game_master):
         if isinstance(game_master, str):
             GameMaster(game_master).apply()
-        elif isinstance(gm, dict):
+        elif isinstance(game_master, dict):
             gm = GameMaster()
             gm.from_json(game_master)
             gm.apply()
+        elif isinstance(game_master, GameMaster):
+            game_master.apply()
         else:
-            raise TypeError("For game_master: Expected str or dict, got {}".format(type(game_master)))
+            raise TypeError("For game_master: Expected str or dict or GameMaster, got {}".format(type(game_master)))
 
 
 def is_pokemon_specific(pkm):

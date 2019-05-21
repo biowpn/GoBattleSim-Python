@@ -820,9 +820,6 @@ class Battle:
     PvP Classes
 '''
 
-PVP_STRATEGY_BASIC_0_SHIELD = 0
-PVP_STRATEGY_BASIC_1_SHIELD = 1
-PVP_STRATEGY_BASIC_2_SHIELD = 2
 
 
 class SimplePvPBattleOutcome(Structure):

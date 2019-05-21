@@ -409,11 +409,9 @@ class GameMaster:
         Case-insensitive search.
         
         '''
-        i = 0
-        for wname in sorted(self.WeatherSettings.keys()):
+        for i, wname in enumerate(sorted(self.WeatherSettings.keys())):
             if wname.lower() == weather_name.lower():
                 return i
-            i += 1
         return -1
     
 

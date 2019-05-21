@@ -96,6 +96,7 @@ class RequestHandler:
         if 'GameMaster' in req_input:
             game_master = GameMaster()
             game_master.from_json(req_input['GameMaster'])
+            game_master.apply()
             del req_input['GameMaster']
         else:
             game_master = GameMaster.CurrentInstance
@@ -123,6 +124,7 @@ class RequestHandler:
         if 'GameMaster' in req_input:
             game_master = GameMaster()
             game_master.from_json(req_input['GameMaster'])
+            game_master.apply()
             del req_input['GameMaster']
         else:
             game_master = GameMaster.CurrentInstance
@@ -134,6 +136,7 @@ class RequestHandler:
         if 'GameMaster' in req_input:
             game_master = GameMaster()
             game_master.from_json(req_input['GameMaster'])
+            game_master.apply()
             del req_input['GameMaster']
         else:
             game_master = GameMaster.CurrentInstance

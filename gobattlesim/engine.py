@@ -876,7 +876,7 @@ class SimplePvPBattle(Addressable):
 
 class BattleMatrix(Addressable):
 
-    lib.BattleMatrix_new.argtypes = [c_int, c_void_p, c_bool]
+    lib.BattleMatrix_new.argtypes = [c_void_p, c_int, c_void_p, c_int, c_bool]
     lib.BattleMatrix_new.restype = c_void_p
     _constructor = lib.BattleMatrix_new
 
@@ -885,17 +885,18 @@ class BattleMatrix(Addressable):
     _destructor = lib.BattleMatrix_delete
 
     
-    def __new__(cls, pokemon_list, enum_shields=False):
-        pokemon_addrs = []
-        for pkm in pokemon_list:
-            assert isinstance(pkm, PvPPokemon)
-            pokemon_addrs.append(pkm._addr)
-        pkm_count = len(pokemon_addrs)
-        pkm_list_ptr = (c_void_p * pkm_count)(*pokemon_addrs)
+    def __new__(cls, row_pkm, col_pkm, enum_shields=False):
+        row_pkm_addrs = [pkm._addr for pkm in row_pkm]
+        col_pkm_addrs = [pkm._addr for pkm in col_pkm]
+        row_size = len(row_pkm_addrs)
+        col_size = len(col_pkm_addrs)
+        row_pkm_arr = (c_void_p * row_size)(*row_pkm_addrs)
+        col_pkm_arr = (c_void_p * col_size)(*col_pkm_addrs)
         instance = object.__new__(cls)
         instance._locked = False
-        instance._addr = cls._constructor(pkm_count, pkm_list_ptr, enum_shields)
-        instance.pokemon_instances = pokemon_list # Prevent garbage collection
+        instance._addr = cls._constructor(row_pkm_arr, row_size, col_pkm_arr, col_size, enum_shields)
+        instance.row_size = row_size
+        instance.col_size = col_size
         return instance
  
 
@@ -915,15 +916,15 @@ class BattleMatrix(Addressable):
         '''
         Return the matrix, a 2D array of battle scores.
         '''
-        n = len(self.pokemon_instances)
-
-        STATIC_ROW = (n * c_double)
+        STATIC_ROW = (self.col_size * c_double)
         DYNAMIC_ROW = POINTER(c_double)
-        STATIC_MAT = (n * DYNAMIC_ROW)
+        STATIC_MAT = (self.row_size * DYNAMIC_ROW)
         DYNAMIC_MAT = POINTER(DYNAMIC_ROW)
         
-        c_matrix = cast(STATIC_MAT(*[cast(STATIC_ROW(), DYNAMIC_ROW) for _ in range(n)]), DYNAMIC_MAT)
-
+        c_matrix = cast(STATIC_MAT(*[cast(STATIC_ROW(), DYNAMIC_ROW) for _ in range(self.row_size)]), DYNAMIC_MAT)
         lib.BattleMatrix_get(self._addr, c_matrix)
 
-        return [[c_matrix[r][c] for c in range(n)] for r in range(n)]
+        return [[c_matrix[r][c] for c in range(self.col_size)] for r in range(self.row_size)]
+
+
+    

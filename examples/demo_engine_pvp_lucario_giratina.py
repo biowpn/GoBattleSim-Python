@@ -29,23 +29,29 @@ set_effectiveness(4, 2, 1/1.6)
 
 
 # Define moves
+# poketype, power, energy, duration, dws (ununsed for PvP)
 # Different from raid battles, the durations are in turns.
-move_counter = Move(poketype=1, power=8, energy=7, duration=2)
-move_shadow_claw = Move(poketype=3, power=6, energy=8, duration=2)
+move_counter = Move(1, 8, 7, 2)
+move_shadow_claw = Move(3, 6, 8, 2)
 
 # Effect: subject (activation chance, my attack change, my defense change, enemy attack change, enemy defense change
-move_power_up_punch = Move(poketype=1, power=40, energy=-35, effect=MoveEffect(1, 1))
-move_shadow_ball = Move(poketype=3, power=100, energy=-55)
-move_dragon_claw = Move(poketype=0, power=50, energy=-35)
-move_ancient_power = Move(poketype=4, power=70, energy=-45, effect=MoveEffect(0.1, 2, 2))
+move_power_up_punch = Move(1, 40, -35)
+move_power_up_punch.effect = MoveEffect(1, 1)
+
+move_shadow_ball = Move(3, 100, -55)
+move_dragon_claw = Move(0, 50, -35)
+
+move_ancient_power = Move(4, 70, -45)
+move_ancient_power.effect = MoveEffect(0.1, 2, 2)
 
 # Define Pokemon
+# poketype1, poketype2, attack, defense, max_hp
 # The three core stats have been calculated beforehand.
-pokemon_lucario = PvPPokemon(poketype1=1, poketype2=2, attack=190.39096, defense=121.08865056, max_hp=142)
+pokemon_lucario = PvPPokemon(1, 2, 190.39096, 121.08865056, 142)
 pokemon_lucario.fmove = move_counter
 pokemon_lucario.cmoves = [move_power_up_punch, move_shadow_ball]
 
-pokemon_giratina = PvPPokemon(poketype1=0, poketype2=3, attack=137.59531384, defense=162.11725095999998, max_hp=203)
+pokemon_giratina = PvPPokemon(0, 3, 137.59531384, 162.11725095999998, 203)
 pokemon_giratina.fmove = move_shadow_claw
 pokemon_giratina.cmoves = [move_dragon_claw, move_ancient_power]
 

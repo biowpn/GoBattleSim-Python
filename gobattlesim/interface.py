@@ -3,10 +3,9 @@
 The interface module.
 
 This module provides game master file parsing, setting game parameters,
-and more convenient battle objects initialization.
+and more convenient battle objects initialization (built on top of engine.py).
 
 '''
-
 
 import json
 import re
@@ -14,7 +13,6 @@ import copy
 import itertools
 
 from .engine import *
-
 
 
 '''
@@ -48,16 +46,13 @@ class GameMaster:
             return Str.split('_')[-1].lower()
 
 
-
     def __init__(self, file=None):
         '''
         {file} is the filepath to the game master json file.
         '''
-        
         self.clear()
         if file is not None:
             self.feed(file)
-
 
     def clear(self):
         '''
@@ -72,7 +67,6 @@ class GameMaster:
         self.TypeEffectiveness = {}
         self.PvEBattleSettings = {}
         self.PvPBattleSettings = {}
-
         # Note: for now, raid tiers data are hard coded because they are not in the game master file.
         self.RaidTierSettings = [
             {"name": "1", "cpm": 0.6, "maxHP": 600, "timelimit": 180000},
@@ -82,16 +76,52 @@ class GameMaster:
             {"name": "5", "cpm": 0.7900000214576721, "maxHP": 15000, "timelimit": 300000},
             {"name": "6", "cpm": 0.7900000214576721,"maxHP": 18750, "timelimit": 3000000}
         ]
-
         return self
+
+
+    def from_json_join(self, source):
+        '''
+        Supply this instance with additional Pokemon and Moves from {source}, a GameMaster-like dict object.
+        '''
+        for pkm in source.get("Pokemon", []):
+            pkm["name"] = pkm.get("name", "")
+            if "pokeType1" in pkm:
+                pkm["poketype1"] = GameMaster.InversedPoketypeList.get(pkm["pokeType1"], -1)
+            if "pokeType2" in pkm:
+                pkm["poketype2"] = GameMaster.InversedPoketypeList.get(pkm["pokeType2"], -1)
+            try:
+                pkm_cur = self.search_pokemon(pkm["name"])
+                for k, v in pkm.items():
+                    pkm_cur[k] = v
+            except:
+                self.Pokemon.append(pkm)
+        for move in source.get("PvEMoves", []):
+            move["name"] = move.get("name", "")
+            if "pokeType" in move:
+                move["poketype"] = GameMaster.InversedPoketypeList.get(move["pokeType"], -1)
+            try:
+                move_cur = self.search_pve_move(move["name"])
+                for k, v in move.items():
+                    move_cur[k] = v
+            except:
+                self.PvEMoves.append(move)
+        for move in source.get("PvPMoves", []):
+            move["name"] = move.get("name", "")
+            if "pokeType" in move:
+                move["poketype"] = GameMaster.InversedPoketypeList.get(move["pokeType"], -1)
+            try:
+                move_cur = self.search_pvp_move(move["name"])
+                for k, v in move.items():
+                    move_cur[k] = v
+            except:
+                self.PvPMoves.append(move)
 
 
     def from_json(self, source):
         '''
-        Write this instance with {source}, a GameMaster-like dict object.
+        Overwrite this instance with {source}, a GameMaster-like dict object.
         Warning: this is very likely to corrupt the game master instance.
         '''
-
         for name, value in source.items():
             if name in self.__dict__:
                 self.__dict__[name] = value
@@ -112,7 +142,6 @@ class GameMaster:
         '''
         Export this instance to a GameMaster-like dict. Also include some other data.
         '''
-
         res = self.__dict__
         res['PoketypeList'] = GameMaster.PoketypeList
         res['PvEStraties'] = []
@@ -128,7 +157,6 @@ class GameMaster:
                     'name': name,
                     'value': globals()[name]
                 })
-
         return res
 
     
@@ -136,7 +164,6 @@ class GameMaster:
         '''
         Load and process a game master json file with filepath {file}.
         '''
-
         with open(file) as gmfile:
             gmdata = json.load(gmfile)
 
@@ -252,7 +279,6 @@ class GameMaster:
         Pass the data to simulator engine and apply, and
         set GameMaster.CurrentInstance to this instance.
         '''
-
         GameMaster.CurrentInstance = self
 
         # Single-valued battle parameters
@@ -292,15 +318,15 @@ class GameMaster:
             for t_name in self.WeatherSettings[weather]:
                 set_type_boosted_weather(GameMaster.InversedPoketypeList[t_name], i)
 
-
         return self
         
-                
 
     @staticmethod
     def _search(_universe, criteria, _all):
         if isinstance(criteria, str):
             cbfn = lambda x: x['name'].strip().lower() == criteria.strip().lower()
+        elif isinstance(criteria, int):
+            cbfn = lambda x: x.get('dex') == criteria
         else:
             cbfn = criteria
         results = []
@@ -326,13 +352,11 @@ class GameMaster:
         '''
         return GameMaster._search(self.Pokemon, criteria, _all)
 
-
     def search_move(self, criteria, _all=False):
         '''
         Same as search_pve_move
         '''
         return self.search_pve_move(criteria, _all)
-
 
     def search_fmove(self, criteria, _all=False):
         '''
@@ -345,7 +369,6 @@ class GameMaster:
         Same as search_pve_cmove
         '''
         return self.search_pve_cmove(criteria, _all)
-
 
     def search_pve_fmove(self, criteria, _all=False):
         '''
@@ -371,7 +394,6 @@ class GameMaster:
         '''
         return GameMaster._search(filter(lambda x: x.get('movetype') == "charged", self.PvPMoves), criteria, _all)
 
-
     def search_pve_move(self, criteria, _all=False):
         '''
         Fetch and return the PvE Move satisfying the criteria.
@@ -381,7 +403,6 @@ class GameMaster:
         If {_all} is False, it will return the first match. Otherwise, all matches
         '''
         return GameMaster._search(self.PvEMoves, criteria, _all)
-
 
     def search_pvp_move(self, criteria, _all=False):
         '''
@@ -393,15 +414,12 @@ class GameMaster:
         '''
         return GameMaster._search(self.PvPMoves, criteria, _all)
 
-
     def search_cpm(self, level):
         '''
         Fetch and return the CPM corresponding to {level}.
-        
         '''
         idx = round(2 * float(level) - 2)
         return self.CPMultipliers[idx]
-
 
     def search_weather(self, weather_name):
         '''
@@ -414,13 +432,11 @@ class GameMaster:
                 return i
         return -1
     
-
     def search_friend(self, friendship):
         '''
         Return the friend attack bonus multiplier of friendship {friendship}.
         Example: "FRIENDSHIP_LEVEL_1", or 1, or "1", "Great", or "great"
         '''
-
         friendship = str(friendship).strip().lower()
         alter_names = ["none", "good", "great", "ultra", "best"]
         for i, friend_setting in enumerate(self.FriendAttackBonusMultipliers):
@@ -429,7 +445,6 @@ class GameMaster:
             elif friendship == alter_names[i]:
                 return friend_setting["multiplier"]
         raise Exception("Friend '{}' not found".format(friendship))
-
 
     def search_raid_tier(self, tier):
         '''
@@ -455,7 +470,6 @@ class GameMaster:
             cmove2
         [cmove2] is optional, while the others are mandoratory.
         '''
-
         results = []
         species_matches = []
         fmove_matches = []
@@ -518,7 +532,6 @@ class GameMaster:
     
 
 
-
 '''
     PokeQuery modules.
 '''
@@ -529,10 +542,8 @@ def BasicPokeQuery(query_str, pkm=None, movetype="fast"):
     The {pkm} is needed if the entity is Move.
     Return a callback predicate that accepts one parameter (the entity to be examined).
     '''
-
     query_str = str(query_str).lower().strip(" *")
 
-    
     # Default predicate for empty query
     if query_str == "":
         if pkm is not None:
@@ -548,11 +559,12 @@ def BasicPokeQuery(query_str, pkm=None, movetype="fast"):
         dex = int(query_str)
         def predicate(entity):
             return entity.get('dex') == dex
-        
     elif query_str[:3] == 'dex':
         num_part = query_str[3:]
         if '-' in num_part:
             min_dex, max_dex = [int(v.strip()) for v in num_part.split('-')][:2]
+        else:
+            min_dex = max_dex = int(num_part)
         def predicate(entity):
             return min_dex <= entity.get('dex') <= max_dex
     
@@ -577,12 +589,10 @@ def BasicPokeQuery(query_str, pkm=None, movetype="fast"):
         movepool = pkm.get(movetype + "Moves", [])
         def predicate(entity):
             return entity['name'] in movepool
-
     elif query_str == "legacy":
         movepool = pkm.get(movetype + "Moves_legacy", [])
         def predicate(entity):
             return entity['name'] in movepool
-
     elif query_str == "exclusive":
         movepool = pkm.get(movetype + "Moves_exclusive", [])
         def predicate(entity):
@@ -671,8 +681,6 @@ def PokeQuery(query_str, pkm=None, movetype="fast"):
 
 
 
-
-
 '''
     Inferface Classes for engine.
 '''
@@ -691,32 +699,21 @@ class IMove(Move):
     Convinient for contructing gobattlesim.engine.Move objects.
     '''
 
-
     def __init__(self, *args, game_master=None, **kwargs):
+        '''
+        The first positional argument can be a string (name of the move to search) or a dict.
+        IMove("Counter") will search for a move named "Counter" but IMove(name="Counter") will not.
+        '''
         game_master = game_master or GameMaster.CurrentInstance
-        if kwargs.get("pvp", False):
-            search_method = game_master.search_pvp_move
-        else:
-            search_method = game_master.search_pve_move
-        move_dict = kwargs
-        if len(args) > 0:
-            arg = args[0]
-            if isinstance(args[0], str):
-                move_dict = search_method(args[0])
-            elif isinstance(args[0], dict):
-                move_dict = args[0]
-            elif isinstance(args[0], Move) or isinstance(args[0], int):
-                super().__init__(args[0])
-                return
+        if "name" in kwargs:
+            if kwargs.get("pvp", False):
+                kwargs.update(game_master.search_pvp_move(kwargs["name"]))
             else:
-                raise TypeError("Wrong argument type")
-        elif "name" in kwargs:
-            move_dict = search_method(kwargs["name"])
+                kwargs.update(game_master.search_pve_move(kwargs["name"]))
         move_dict_clean = {}
-        for k, v in move_dict.items():
+        for k, v in kwargs.items():
             if isinstance(v, int) or isinstance(v, dict) or isinstance(v, MoveEffect):
-                move_dict_clean[k] = v
-        super().__init__(**move_dict_clean)
+                setattr(self, k, v)
 
 
 
@@ -726,14 +723,12 @@ class IPokemon(PvPPokemon):
     Convinient for contructing gobattlesim.engine.Pokemon(/PvPPokemon) objects.
     '''
 
-
     @staticmethod
     def calc_cp(bAtk, bDef, bStm, cpm, atkiv, defiv, stmiv):
         Atk = (bAtk + atkiv) * cpm
         Def = (bDef + defiv) * cpm
         Stm = (bStm + stmiv) * cpm
         return max(10, int( Atk * (Def * Stm)**0.5 / 10 ))
-
 
     @staticmethod
     def infer_level_and_IVs(bAtk, bDef, bStm, target_cp):
@@ -750,8 +745,6 @@ class IPokemon(PvPPokemon):
             if IPokemon.calc_cp(bAtk, bDef, bStm, CPMultipliers[max_cpm_i], 0, 0, 0) <= target_cp:
                 break
             max_cpm_i -= 1
-
-        
         for cpm in CPMultipliers[min_cpm_i : max_cpm_i + 1]:
             for stmiv in range(16):
                 for defiv in range(16):
@@ -763,14 +756,11 @@ class IPokemon(PvPPokemon):
                             closest_cp = cp
                             closest = (cpm, atkiv, defiv, stmiv)
         return closest
-
     
 
     def __init__(self, *args, game_master=None, **kwargs):
         '''
-        If there is a positional argument, it must be an Pokemon/IPokemon instance, or an address to one.
-
-        **kwargs can include:
+        All Pokemon parameters should be passed via keyword arguments, including:
             name, fmove, cmove, cmoves, level, atkiv, defiv, stmiv, cp, role, tier, immortal, strategy
             
         Some examples:
@@ -779,78 +769,79 @@ class IPokemon(PvPPokemon):
             Define an attacker by cp (infer the stats):
                 (name, fmove, cmove/cmoves, cp)
             Define a raid boss:
-                (name, fmove, cmove, role=ROLE_RAID_BOSS, tier=4)
+                (name, fmove, cmove, role=ROLE_RAID_BOSS, tier)
             Define a gym defender by cp (infer the stats, too):
                 (name, fmove, cmove, cp, role=ROLE_GYM_DEFENDER)
         '''
-
         game_master = game_master or GameMaster.CurrentInstance
         self.__dict__['tier'] = None
-        p_dict = kwargs
-        if len(args):
-            if isinstance(args[0], Pokemon) or isinstance(args[0], int):
-                super.__init__(args[0])
-                self.__dict__['tier'] = args[0].__dict__.get('tier', None)
-                return
-            elif isinstance(args[0], dict):
-                p_dict = args[0]
-            else:
-                raise TypeError("Wrong argument type")
-        
-        # These are the stats must be worked out
-        targets = {"poketype1": 0, "poketype2": 0, "attack": 0, "defense": 0, "max_hp": 0}
-        
-        sdata = game_master.search_pokemon(p_dict['name'])
-        bAtk, bDef, bStm = sdata['baseAtk'], sdata['baseDef'], sdata['baseStm']
-        targets["poketype1"] = sdata["poketype1"]
-        targets["poketype2"] = sdata["poketype2"]
-        
-        role = p_dict.get("role", ROLE_PVE_ATTACKER)
-        if role == ROLE_RAID_BOSS or "tier" in p_dict:
-            tier = str(p_dict["tier"])
+
+        if "name" in kwargs:
+            kwargs.update(game_master.search_pokemon(kwargs["name"]))
+        if "poketype1" in kwargs:
+            self.poketype1 = kwargs["poketype1"]
+        if "poketype2" in kwargs:
+            self.poketype2 = kwargs["poketype2"]
+
+        role = kwargs.get("role", ROLE_PVE_ATTACKER)
+        if role == ROLE_RAID_BOSS or "tier" in kwargs:
+            tier = str(kwargs["tier"])
             tier_setting = game_master.search_raid_tier(tier)
-            targets["attack"] = (sdata['baseAtk'] + 15) * tier_setting['cpm']
-            targets["defense"] = (sdata['baseDef'] + 15) * tier_setting['cpm']
-            targets["max_hp"] = tier_setting['maxHP']
+            self.attack = (kwargs["baseAtk"] + 15) * tier_setting['cpm']
+            self.defense = (kwargs["baseDef"] + 15) * tier_setting['cpm']
+            self.max_hp = tier_setting["maxHP"]
             self.__dict__['tier'] = tier
-        else:
-            if "cp" in p_dict:
-                cp = p_dict["cp"]
+        elif len(args) < 5:
+            if "cp" in kwargs:
+                cp = kwargs["cp"]
                 if not isinstance(cp, int):
                     raise TypeError("cp is of wrong type. Expected int, got {}".format(type(cp)))
-                cpm, atkiv, defiv, stmiv = IPokemon.infer_level_and_IVs(bAtk, bDef, bStm, cp)
+                cpm, atkiv, defiv, stmiv = IPokemon.infer_level_and_IVs(kwargs["baseAtk"], kwargs["baseDef"], kwargs["baseStm"], cp)
             else:
-                cpm = game_master.search_cpm(p_dict.get("level", 40))
-                atkiv = int(p_dict.get("atkiv", 15))
-                defiv = int(p_dict.get("defiv", 15))
-                stmiv = int(p_dict.get("stmiv", 15))
-            targets["attack"] = (bAtk + atkiv) * cpm
-            targets["defense"] = (bDef + defiv) * cpm
-            targets["max_hp"] = int((bStm + stmiv) * cpm)
+                cpm = game_master.search_cpm(kwargs.get("level", 40))
+                atkiv = int(kwargs.get("atkiv", 15))
+                defiv = int(kwargs.get("defiv", 15))
+                stmiv = int(kwargs.get("stmiv", 15))
+            self.attack = (kwargs["baseAtk"] + atkiv) * cpm
+            self.defense = (kwargs["baseDef"] + defiv) * cpm
+            self.max_hp = int((kwargs["baseStm"] + stmiv) * cpm)
             if role == ROLE_GYM_DEFENDER:
-                targets["max_hp"] *= 2
-        super().__init__(**targets)
-
+                self.max_hp *= 2
+        
         # Set up moves
-        pvp = (role == ROLE_PVP_ATTACKER) or p_dict.get("pvp", False) or kwargs.get("pvp", False)
-        if "fmove" in p_dict:
-            self.fmove = IMove(p_dict["fmove"], pvp=pvp, game_master=game_master)
-
+        pvp = (role == ROLE_PVP_ATTACKER) or kwargs.get("pvp", False)
+        if "fmove" in kwargs:
+            if isinstance(kwargs["fmove"], str):
+                self.fmove = IMove(name=kwargs["fmove"], pvp=pvp, game_master=game_master)
+            elif isinstance(kwargs["fmove"], dict):
+                self.fmove = IMove(**kwargs["fmove"], pvp=pvp, game_master=game_master)
+            elif isinstance(kwargs["fmove"], Move):
+                self.fmove = Move.cast(kwargs["fmove"]._addr)
+            else:
+                raise TypeError("Expected int/dict/Move, got {}".format(type(kwargs["fmove"])))
         raw_cmoves = []
-        if "cmove" in p_dict:
-            raw_cmoves = [p_dict["cmove"]]
-            if "cmove2" in p_dict:
-                raw_cmoves.append(p_dict["cmove2"])
-        elif "cmoves" in p_dict:
-            raw_cmoves = p_dict["cmoves"]
-        self.cmoves = [IMove(cmove, pvp=pvp, game_master=game_master) for cmove in raw_cmoves]
+        if "cmove" in kwargs:
+            raw_cmoves = [kwargs["cmove"]]
+            if "cmove2" in kwargs:
+                raw_cmoves.append(kwargs["cmove2"])
+        elif "cmoves" in kwargs:
+            raw_cmoves = kwargs["cmoves"]
+        cmoves = []
+        for move in raw_cmoves:
+            if isinstance(move, str):
+                cmoves.append(IMove(name=move, pvp=pvp, game_master=game_master))
+            elif isinstance(move, dict):
+                cmoves.append(IMove(**move, pvp=pvp, game_master=game_master))
+            elif isinstance(move, Move):
+                cmoves.append(move)
+            else:
+                raise TypeError("Expected int/dict/Move, got {}".format(type(move)))
+        self.cmoves = cmoves
 
         # Set up other attributes
-        self.immortal = p_dict.get("immortal", False)
-
-        if "num_shields" in p_dict or "strategy2" in p_dict or "shield" in p_dict:
-            arg_num_shields = p_dict.get("num_shields", p_dict.get("strategy2", p_dict.get("shield")))
-            self.num_shields = arg_num_shields
+        self.immortal = kwargs.get("immortal", False)
+        if "num_shields" in kwargs or "strategy2" in kwargs or "shield" in kwargs:
+            self.num_shields = kwargs.get("num_shields", kwargs.get("strategy2", kwargs.get("shield")))
 
 
 
@@ -861,35 +852,29 @@ class IParty(Party):
     '''
 
     def __init__(self, *arg, game_master=None, **kwargs):
+        '''
+        All Party parameters should be passed via keyword arguments, which can include:
+            pokemon, revive (revive_policy)
+        '''
         game_master = game_master or GameMaster.CurrentInstance
-        party_dict = kwargs
-        if len(args) > 0:
-            if isinstance(args[0], dict):
-                party_dict = args[0]
-            elif isinstance(args[0], Party) or isinstance(args[0], int):
-                super().__init__(args[0])
-                return
-            else:
-                raise TypeError("Wrong argument type")
-        if "pokemon" in party_dict:
-            arg_pkm = party_dict["pokemon"]
+        if "pokemon" in kwargs:
+            arg_pkm = kwargs["pokemon"]
             if isinstance(arg_pkm, list):
-                party_dict["pokemon"] = [IPokemon(pkm, game_master=game_master) for pkm in arg_pkm]
+                kwargs["pokemon"] = [IPokemon(pkm, game_master=game_master) for pkm in arg_pkm]
             elif isinstance(arg_pkm, dict) or isinstance(arg_pkm, Pokemon):
-                party_dict["pokemon"] = [IPokemon(arg_pkm, game_master=game_master)]
+                kwargs["pokemon"] = [IPokemon(arg_pkm, game_master=game_master)]
             else:
                 raise TypeError("Wrong type for pokemon")
-        else:
-            raise Exception("Must have pokemon for party")
-        revive_policy = party_dict.get("revive_policy", party_dict.get("revive", 0))
+        revive_policy = kwargs.get("revive_policy", kwargs.get("revive", 0))
         if isinstance(revive_policy, str):
             revive_policy = int(revive_policy)
         elif isinstance(revive_policy, bool):
             revive_policy = -1 if revive_policy else 0
         else:
             TypeError("Wrong type for revive_policy: {}".format(type(revive_policy)))
-        party_dict["revive_policy"] = revive_policy
-        super().__init__(**party_dict)
+        kwargs["revive_policy"] = revive_policy
+        for k, v in kwargs.items():
+            setattr(self, k, v)
 
 
 
@@ -900,29 +885,23 @@ def IPlayer(Player):
     '''
 
     def __init__(self, *arg, game_master=None, **kwargs):
+        '''
+        All Player parameters should be passed via keyword arguments, which can include:
+            parties (party), attack_multiplier, clone_multiplier
+        '''
         game_master = game_master or GameMaster.CurrentInstance
-        player_dict = kwargs
-        if len(args) > 0:
-            if isinstance(args[0], dict):
-                player_dict = args[0]
-            elif isinstance(args[0], Player) or isinstance(args[0], int):
-                super().__init__(args[0])
-                return
-            else:
-                raise TypeError("Wrong argument type")
-        if "parties" in player_dict or "party" in player_dict:
-            arg_party = player_dict.get("parties", player_dict["party"])
+        if "parties" in kwargs or "party" in kwargs:
+            arg_party = kwargs.get("parties", kwargs["party"])
             if isinstance(arg_party, list):
-                player_dict["parties"] = [IParty(pty, game_master=game_master) for pty in arg_party]
+                kwargs["parties"] = [IParty(pty, game_master=game_master) for pty in arg_party]
             elif isinstance(arg_party, dict) or isinstance(arg_party, Party):
-                player_dict["parties"] = [IParty(arg_party, game_master=game_master)]
+                kwargs["parties"] = [IParty(arg_party, game_master=game_master)]
             else:
                 raise TypeError("Wrong type for parties: {}".format(type(arg_party)))
-        else:
-            raise Exception("Player must have parties")
-        fabm = game_master.search_friend(player_dict.get("friend", "none"))
-        player_dict["attack_multiplier"] = fabm * player_dict.get("attack_multiplier", 1)
-        super().__init__(**player_dict)
+        if "friend" in kwargs:
+            kwargs["attack_multiplier"] = kwargs.get("attack_multiplier", 1) * game_master.search_friend(kwargs["friend"])
+        for k, v in kwargs.items():
+            setattr(self, k, v)
 
 
 
@@ -933,32 +912,27 @@ class IBattle(Battle):
     '''
         
     def __init__(self, *arg, game_master=None, **kwargs):
+        '''
+        All Battle parameters should be passed via keyword arguments, which can include:
+            players (player), weather, time_limit, num_sims
+        '''
         game_master = game_master or GameMaster.CurrentInstance
-        battle_dict = kwargs
-        if len(args) > 0:
-            if isinstance(args[0], dict):
-                battle_dict = args[0]
-            elif isinstance(args[0], Battle) or isinstance(args[0], int):
-                super().__init__(args[0])
-                return
-            else:
-                raise TypeError("Wrong argument type")
-        if "players" in battle_dict:
-            arg_player = battle_dict["players"]
+        if "players" in kwargs or "player" in kwargs:
+            arg_player = kwargs.get("players", kwargs["players"])
             if isinstance(arg_player, list):
-                battle_dict["players"] = [IPlayer(plyr, game_master=game_master) for plyr in arg_player]
+                kwargs["players"] = [IPlayer(player, game_master=game_master) for player in arg_player]
             elif isinstance(arg_player, dict) or isinstance(arg_player, Player):
-                battle_dict["players"] = [IPlayer(arg_player, game_master=game_master)]
+                kwargs["players"] = [IPlayer(arg_player, game_master=game_master)]
             else:
                 raise TypeError("Wrong type for players: {}".format(type(arg_player)))
-        if "weather" in battle_dict:
-            if isinstance(battle_dict["weather"], str):
-                battle_dict["weather"] = game_master.search_weather(battle_dict["weather"])
-        self.__dict__['num_sims'] = max(1, int(battle_dict.get("num_sims", 1)))
-        super().__init__(**battle_dict)
+        if "weather" in kwargs:
+            if isinstance(kwargs["weather"], str):
+                kwargs["weather"] = game_master.search_weather(kwargs["weather"])
+        self.__dict__['num_sims'] = max(1, int(kwargs.get("num_sims", 1)))
+        for k, v in kwargs.items():
+            setattr(self, k, v)
 
 
-    
     def run(self):
         '''
         Run the battle for {num_sims} times and returns the average outcome.
@@ -996,6 +970,7 @@ def quick_raid_battle(attacker,
                       strategy=STRATEGY_ATTACKER_NO_DODGE,
                       rejoin=0,
                       weather="extreme",
+                      time_limit=None,
                       num_sims=2000,
                       random_seed=0,
                       game_master=None):
@@ -1009,13 +984,16 @@ def quick_raid_battle(attacker,
 
     pkm_list = []
     if isinstance(attacker, list):
-        pkm_list = [IPokemon(atkr, game_master=game_master) for atkr in attacker]
+        pkm_list = [IPokemon(**atkr, game_master=game_master) for atkr in attacker]
     else:
-        pkm_list = [IPokemon(attacker, game_master=game_master)]
+        pkm_list = [IPokemon(**attacker, game_master=game_master)]
 
-    d_pokemon = IPokemon(boss, game_master=game_master)
-    d_party = Party(pokemon=[d_pokemon])
-    d_player = Player(parties=[d_party], team=0)
+    d_pokemon = IPokemon(**boss, game_master=game_master)
+    d_party = Party()
+    d_party.add(d_pokemon)
+    d_player = Player()
+    d_player.add(d_party)
+    d_player.team = 0
     d_player.strategy = STRATEGY_DEFENDER
     
     players_list = [d_player]
@@ -1023,16 +1001,21 @@ def quick_raid_battle(attacker,
         a_party = Party()
         a_party.pokemon = [pkm] * party_size
         a_party.revive_policy = rejoin
-        a_player = Player(parties=[a_party])
+        a_player = Player()
+        a_player.parties = [a_party]
         a_player.team = 1
         a_player.strategy = strategy
         a_player.clone_multiplier = player_multiplier
         a_player.attack_multiplier = game_master.search_friend(friend)
         players_list.append(a_player)
 
-    battle = Battle(players=players_list)
+    battle = Battle()
+    battle.players = players_list
     battle.weather = game_master.search_weather(weather)
-    battle.time_limit = game_master.search_raid_tier(d_pokemon.tier)['timelimit']
+    if time_limit is None:
+        battle.time_limit = game_master.search_raid_tier(d_pokemon.tier)['timelimit']
+    else:
+        battle.time_limit = int(time_limit)
 
     sum_duration = sum_wins = sum_tdo_percent = sum_deaths = 0
     for i in range(num_sims):
@@ -1054,27 +1037,23 @@ def quick_raid_battle(attacker,
 
 def quick_pvp_battle(pokemon_0,
                      pokemon_1,
-                     num_shields=[],
-                     game_master=GameMaster.CurrentInstance):
+                     num_shields=[0, 0],
+                     game_master=None):
     '''
     Simulate a quick PvP battle.
     Returns the battle score of pokemon_0.
-    Note that priority is given to pokemon_0 when simultaneous charged attacks happen.
     '''
 
-    p0 = IPokemon(pokemon_0, pvp=True, game_master=game_master)
-    p1 = IPokemon(pokemon_1, pvp=True, game_master=game_master)
-
-    if len(num_shields) > 0:
-        p0.pvp_strategy = num_shields[0]
-    if len(num_shields) > 1:
-        p1.pvp_strategy = num_shields[1]
+    game_master = game_master or GameMaster.CurrentInstance
+    
+    p0 = IPokemon(**pokemon_0, pvp=True, game_master=game_master)
+    p1 = IPokemon(**pokemon_1, pvp=True, game_master=game_master)
 
     battle = SimplePvPBattle(p0, p1)
+    battle.set_num_shields_max(num_shields[0], num_shields[1])
     battle.init()
     battle.start()
     tdo_percent = battle.get_outcome().tdo_percent
-    tdo_percent_adjusted = [(p if p < 1 else 1) for p in tdo_percent]
 
-    return tdo_percent_adjusted[0] - tdo_percent_adjusted[1]
+    return min(tdo_percent[0], 1) - min(tdo_percent[1], 1)
 

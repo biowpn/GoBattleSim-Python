@@ -1,22 +1,10 @@
 
 '''
-A wrapper for native GoBattleSim engine (in C++).
-
-It contains the following classes:
-
-    Move
-    Pokemon
-    Party
-    Player
-    Strategy
-    Battle
-    
-as well as some functions to set battle paremeters.
+A wrapper library for native GoBattleSim engine (in C++).
 
 '''
 
 from ctypes import *
-
 import os
 import platform
 
@@ -30,27 +18,6 @@ else:
 '''
 Global Constants
 '''
-
-BATTLE_PARAMETERS = [
-    "max_energy",
-    "min_stage",
-    "max_stage",
-    "dodge_duration",
-    "dodge_window",
-    "swap_duration",
-    "switching_cooldown",
-    "rejoin_duration",
-    "item_menu_animation_time",
-    "max_revive_time_per_pokemon",
-    "same_type_attack_bonus_multiplier",
-    "weather_attack_bonus_multiplier",
-    "pvp_fast_attack_bonus_multiplier",
-    "pvp_charged_attack_bonus_multiplier",
-    "dodge_damage_reduction_percent",
-    "energy_delta_per_health_lost",
-]
-
-
 
 STRATEGY_DEFENDER = 0
 STRATEGY_ATTACKER_NO_DODGE = 1
@@ -87,7 +54,6 @@ def set_random_seed(seed):
     '''
     Set the random seed.
     '''
-
     lib.Global_set_random_seed(seed)
 
 
@@ -97,7 +63,6 @@ def calc_damage(attacker, move, defender, weather):
     '''
     [For PvE Battles] Calculate the damage value of attacker using move against defender in some weather.
     '''
-
     return lib.Global_calc_damage(attacker._addr, move._addr, defender._addr, weather)
 
 
@@ -108,7 +73,6 @@ def calc_damage_pvp_fmove(attacker, move, defender):
     [For PvP Battles] Calculate the damage value of attacker using move against defender.
     GameMaster::pvp_fast_attack_bonus_multiplier is taken into account.
     '''
-
     return lib.Global_calc_damage_pvp_fmove(attacker._addr, move._addr, defender._addr)
 
 
@@ -119,7 +83,6 @@ def calc_damage_pvp_cmove(attacker, move, defender, weather):
     [For PvP Battles] Calculate the damage value of attacker using move against defender.
     GameMaster::pvp_charged_attack_bonus_multiplier is taken into account.
     '''
-
     return lib.Global_calc_damage_pvp_cmove(attacker._addr, move._addr, defender._addr)
 
 
@@ -130,7 +93,6 @@ def set_num_types(num_types):
     '''
     Set the number of Pokemon Types.
     '''
-
     lib.GameMaster_set_num_types(num_types)
 
 
@@ -140,7 +102,6 @@ def set_effectiveness(type_i, type_j, multiplier):
     '''
     Set the effectiveness multiplier of type i attacking type j.
     '''
-
     lib.GameMaster_set_effectiveness(type_i, type_j, multiplier)
 
 
@@ -150,7 +111,6 @@ def set_type_boosted_weather(type_i, weather):
     '''
     Set the weather where type_i is boosted.
     '''
-
     lib.GameMaster_set_type_boosted_weather(type_i, weather)
 
 
@@ -162,7 +122,6 @@ def set_stage_multipliers(multipliers, min_stage=None):
     '''
     Set the stat multipliers.
     '''
-
     if min_stage is None:
         min_stage = - (len(multipliers) // 2)
     max_stage = min_stage + len(multipliers) - 1
@@ -178,10 +137,51 @@ def set_parameter(name, value):
     Set a specific battle parameter.
     Refer to BATTLE_PARAMETERS for all available parameters.
     '''
-
     lib.GameMaster_set_parameter(name.encode('utf-8'), value)
 
 
+
+class Addressable:
+    '''
+    Base class for wrapper classes.
+    An <Addressable> object contains an address to the actual C++ object.
+
+    Upon creation of a new instance, the underlying C++ constructor will be called with positional arguments supplied.
+    If positional arguments are less than required, 0 will be used to fill the gap.
+    
+    Simple shallow copy is provided. Deepcopy is not supported.
+
+    A cast() class method is also provided, which accepts an address (an int)
+    and returns an Addressable instance with the same address. Call this with caution.
+    '''
+
+    _constructor = None
+    _destructor = None
+
+    def __new__(cls, *args, **kwargs):
+        instance = object.__new__(cls)
+        instance.__dict__["_locked"] = False
+        args = args + (0,) * len(cls._constructor.argtypes)
+        instance.__dict__["_addr"] = cls._constructor(*args)
+        return instance
+
+    def __del__(self):
+        if not self._locked:
+            self.__class__._destructor(self._addr)
+            
+
+    @classmethod
+    def cast(cls, address):
+        instance = object.__new__(cls)
+        instance.__dict__["_addr"] = address
+        instance.__dict__["_locked"] = True
+        return instance
+
+    def __copy__(self):
+        return self.__class__.cast(self._addr)
+
+    def copy(self):
+        return self.__copy__()
 
 
 
@@ -209,10 +209,6 @@ class BattleOutcome(Structure):
                 ("num_deaths", c_int)]
 
 
-
-
-
-
 class Action(Structure):
     _fields_ = [("type", c_int),
                 ("delay", c_int),
@@ -233,19 +229,14 @@ class StrategyInput:
 
     def __init__(self, _strat_input):
         self.time = _strat_input.time
-        self.subject = Pokemon(_strat_input.subject)
+        self.subject = Pokemon.cast(_strat_input.subject)
         self.subject_action = _strat_input.subject_action
-        self.enemy = Pokemon(_strat_input.enemy)
+        self.enemy = Pokemon.cast(_strat_input.enemy)
         self.enemy_action = _strat_input.enemy_action
         self.random_number = _strat_input.random_number
         self.weather = _strat_input.weather
             
 EventResponder = CFUNCTYPE(c_void_p, _StrategyInput, POINTER(Action))
-
-
-
-
-
 
 
 class MoveEffect(Structure):
@@ -256,36 +247,15 @@ class MoveEffect(Structure):
                 ("target_defense_stage_delta", c_int)]
 
 
-class Move:
+class Move(Addressable):
 
     lib.Move_new.argtypes = [c_int, c_int, c_int, c_int, c_int]
     lib.Move_new.restype = c_void_p
-    def __init__(self, _src=None, **kwargs):
-        self.__dict__["_locked"] = True
-        init_params = ["poketype", "power", "energy", "duration", "dws"]
-        if _src is not None:
-            if isinstance(_src, Move):
-                self.__dict__["_addr"] = _src._addr
-            else:
-                self.__dict__["_addr"] = _src
-        else:
-            self.__dict__["_addr"] = lib.Move_new(
-                kwargs.get("poketype", 0),
-                kwargs.get("power", 0),
-                kwargs.get("energy", 0),
-                kwargs.get("duration", 0),
-                kwargs.get("dws", 0))
-            self.__dict__["_locked"] = False
-            for name, value in kwargs.items():
-                if name not in init_params:
-                    self.__setattr__(name, value)
-
+    _constructor = lib.Move_new
 
     lib.Move_delete.argtypes = [c_void_p]
     lib.Move_delete.restype = c_void_p
-    def __del__(self):
-        if self.__dict__.get("_locked") == False:
-            lib.Move_delete(self._addr)
+    _destructor = lib.Move_delete
 
 
     lib.Move_has_attr.argtypes = [c_void_p, c_char_p]
@@ -300,9 +270,9 @@ class Move:
     lib.Move_get_attr.restype = c_int
     def __getattr__(self, name):
         if name == "effect":
-            me = MoveEffect()
-            lib.Move_get_effect(self._addr, pointer(me))
-            return me
+            move_effect = MoveEffect()
+            lib.Move_get_effect(self._addr, pointer(move_effect))
+            return move_effect
         else:
             return lib.Move_get_attr(self._addr, name.encode('utf-8'))
 
@@ -327,37 +297,16 @@ class Move:
 
 
 
-
-class Pokemon:
+class Pokemon(Addressable):
         
     lib.Pokemon_new.argtypes = [c_int, c_int, c_double, c_double, c_int]
     lib.Pokemon_new.restype = c_void_p
-    def __init__(self, _src=None, **kwargs):
-        self.__dict__["_locked"] = True
-        init_params = ["poketype1", "poketype2", "attack", "defense", "max_hp"]
-        if _src is not None:
-            if isinstance(_src, Pokemon):
-                self.__dict__["_addr"] = _src._addr
-            else:
-                self.__dict__["_addr"] = _src
-        else:
-            self.__dict__["_addr"] = lib.Pokemon_new(
-                kwargs.get("poketype1", -1),
-                kwargs.get("poketype2", -1),
-                kwargs.get("attack", 0),
-                kwargs.get("defense", 0),
-                kwargs.get("max_hp", 0))
-            self.__dict__["_locked"] = False
-            for name, value in kwargs.items():
-                if name not in init_params:
-                    self.__setattr__(name, value)
-
+    _constructor = lib.Pokemon_new
 
     lib.Pokemon_delete.argtypes = [c_void_p]
     lib.Pokemon_delete.restype = c_void_p
-    def __del__(self):
-        if self.__dict__.get("_locked") == False:
-            lib.Pokemon_delete(self._addr)
+    _destructor = lib.Pokemon_delete
+    
 
     lib.Pokemon_get_fmove.argtypes = [c_void_p, c_int]
     lib.Pokemon_get_fmove.restype = c_void_p
@@ -374,7 +323,6 @@ class Pokemon:
     lib.Pokemon_erase_cmoves.argtypes = [c_void_p]
     lib.Pokemon_erase_cmoves.restype = c_void_p
 
-
     lib.Pokemon_has_attr.argtypes = [c_void_p, c_char_p]
     lib.Pokemon_has_attr.restype = c_bool
     def __hasattr__(self, name):
@@ -385,13 +333,13 @@ class Pokemon:
     lib.Pokemon_get_attr.restype = c_double
     def __getattr__(self, name):
         if name == "fmove":
-            return Move(lib.Pokemon_get_fmove(self._addr, 0))
+            return Move.cast(lib.Pokemon_get_fmove(self._addr, 0))
         elif name == "cmove":
-            return Move(lib.Pokemon_get_cmove(self._addr, -1))
+            return Move.cast(lib.Pokemon_get_cmove(self._addr, -1))
         elif name == "cmoves":
             cmoves = []
             for i in range(round(self.cmoves_count)):
-                cmoves.append(Move(lib.Pokemon_get_cmove(self._addr, i)))
+                cmoves.append(Move.cast(lib.Pokemon_get_cmove(self._addr, i)))
             return cmoves
         else:
             return lib.Pokemon_get_attr(self._addr, name.encode('utf-8'))
@@ -419,31 +367,15 @@ class Pokemon:
 
 
 
-
-
-class Party:
+class Party(Addressable):
 
     lib.Party_new.argtypes = []
     lib.Party_new.restype = c_void_p
-    def __init__(self, _src=None, **kwargs):
-        self.__dict__["_locked"] = True
-        if _src is not None:
-            if isinstance(_src, Party):
-                self.__dict__["_addr"] = _src._addr
-            else:
-                self.__dict__["_addr"] = _src
-        else:
-            self.__dict__["_addr"] = lib.Party_new()
-            self.__dict__["_locked"] = False
-        for name, value in kwargs.items():
-            self.__setattr__(name, value)
-
+    _constructor = lib.Party_new
 
     lib.Party_delete.argtypes = [c_void_p]
     lib.Party_delete.restype = c_void_p
-    def __del__(self):
-        if self.__dict__.get("_locked") == False:
-            lib.Party_delete(self._addr)
+    _destructor = lib.Party_delete
 
 
     lib.Party_get_pokemon.argtypes = [c_void_p, c_int]
@@ -454,13 +386,11 @@ class Party:
 
     lib.Party_erase_pokemon.argtypes = [c_void_p]
     lib.Party_erase_pokemon.restype = c_void_p
-    
-    
     def add(self, pokemon):
         '''
         Add a Pokemon to the party.
         '''
-        
+        assert isinstance(pokemon, Pokemon)
         if self._locked:
             raise Exception("Cannot modify locked instance")
         lib.Party_add_pokemon(self._addr, pokemon._addr)
@@ -478,7 +408,7 @@ class Party:
         if name == "pokemon":
             pokemon_list = []
             for i in range(round(self.pokemon_count)):
-                pokemon_list.append(Pokemon(lib.Party_get_pokemon(self._addr, i)))
+                pokemon_list.append(Pokemon.cast(lib.Party_get_pokemon(self._addr, i)))
             return pokemon_list
         else:
             return lib.Party_get_attr(self._addr, name.encode('utf-8'))
@@ -499,33 +429,16 @@ class Party:
 
 
 
-
-class Player:
+class Player(Addressable):
 
     lib.Player_new.argtypes = []
     lib.Player_new.restype = c_void_p
-    def __init__(self, _src=None, **kwargs):
-        self.__dict__["_locked"] = True
-        if _src is not None:
-            if isinstance(_src, Player):
-                self.__dict__["_addr"] = _src._addr
-            else:
-                self.__dict__["_addr"] = _src
-        else:
-            self.__dict__["_addr"] = lib.Player_new()
-            self.__dict__["_locked"] = False
-        self.__dict__["_attack_multiplier"] = 1
-        self.__dict__["_clone_multiplier"] = 1
-        for name, value in kwargs.items():
-            self.__setattr__(name, value)
-
+    _constructor = lib.Player_new
 
     lib.Player_delete.argtypes = [c_void_p]
     lib.Player_delete.restype = c_void_p
-    def __del__(self):
-        if self.__dict__.get("_locked") == False:
-            lib.Player_delete(self._addr)
-
+    _destructor = lib.Player_delete
+    
 
     lib.Player_get_party.argtypes = [c_void_p, c_int]
     lib.Player_get_party.restype = c_void_p
@@ -539,10 +452,10 @@ class Player:
         '''
         Add a party to the player.
         '''
+        assert isinstance(party, Party)
         if self._locked:
             raise Exception("Cannot modify locked instance")
         lib.Player_add_party(self._addr, party._addr)
-
 
 
     lib.Player_has_attr.argtypes = [c_void_p, c_char_p]
@@ -560,12 +473,12 @@ class Player:
         if name == "parties":
             party_list = []
             for i in range(round(self.parties_count)):
-                party_list.append(Party(lib.Player_get_party(self._addr, i)))
+                party_list.append(Party.cast(lib.Player_get_party(self._addr, i)))
             return party_list
         elif name == "attack_multiplier":
-            return self._attack_multiplier
+            return self.__dict__.get("attack_multiplier", 1)
         elif name == "clone_multiplier":
-            return self._clone_multiplier
+            return self.__dict__.get("clone_multiplier", 1)
         elif name == "strategy":
             return Strategy(lib.Player_get_strategy(self._addr))
         else:
@@ -595,10 +508,10 @@ class Player:
                 assert isinstance(party, Party)
                 lib.Player_add_party(self._addr, party._addr)
         elif name == "attack_multiplier":
-            self.__dict__["_attack_multiplier"] = value
+            self.__dict__["attack_multiplier"] = value
             lib.Player_set_attack_multiplier(self._addr, c_double(value))
         elif name == "clone_multiplier":
-            self.__dict__["_clone_multiplier"] = value
+            self.__dict__["clone_multiplier"] = value
             lib.Player_set_clone_multiplier(self._addr, c_int(value))
         elif name == "strategy":
             if isinstance(value, Strategy):
@@ -610,7 +523,7 @@ class Player:
     
 
         
-class Strategy:
+class Strategy(Addressable):
 
     user_event_responders = []
 
@@ -628,25 +541,11 @@ class Strategy:
 
     lib.Strategy_new.argtypes = []
     lib.Strategy_new.restype = c_void_p
-    def __init__(self, _src=None, **kwargs):
-        self.__dict__["_locked"] = True
-        if _src is not None:
-            if isinstance(_src, Strategy):
-                self.__dict__["_addr"] = _src._addr
-            else:
-                self.__dict__["_addr"] = _src
-        else:
-            self.__dict__["_addr"] = lib.Strategy_new()
-            self.__dict__["_locked"] = False
-        for name, value in kwargs.items():
-            self.__setattr__(name, value)
-
+    _constructor = lib.Strategy_new
 
     lib.Strategy_delete.argtypes = [c_void_p]
     lib.Strategy_delete.restype = c_void_p
-    def __del__(self):
-        if self.__dict__.get("_locked") == False:
-            lib.Strategy_delete(self._addr)
+    _destructor = lib.Strategy_delete
 
 
     lib.Strategy_set_on_free.argtypes = [c_void_p, c_void_p]
@@ -669,29 +568,15 @@ class Strategy:
 
 
 
-class Battle:
+class Battle(Addressable):
 
     lib.Battle_new.argtypes = []
     lib.Battle_new.restype = c_void_p
-    def __init__(self, _src=None, **kwargs):
-        self.__dict__["_locked"] = True
-        if _src is not None:
-            if isinstance(_src, Battle):
-                self.__dict__["_addr"] = _src._addr
-            else:
-                self.__dict__["_addr"] = _src
-        else:
-            self.__dict__["_addr"] = lib.Battle_new()
-            self.__dict__["_locked"] = False
-        for name, value in kwargs.items():
-            self.__setattr__(name, value)
-
+    _constructor = lib.Battle_new
 
     lib.Battle_delete.argtypes = [c_void_p]
     lib.Battle_delete.restype = c_void_p
-    def __del__(self):
-        if self.__dict__.get("_locked") == False:
-            lib.Battle_delete(self._addr)
+    _destructor = lib.Battle_delete
 
         
     lib.Battle_get_player.argtypes = [c_void_p, c_int]
@@ -707,7 +592,7 @@ class Battle:
         '''
         Add a player to the battle.
         '''
-        
+        assert isinstance(player, Player)
         lib.Battle_add_player(self._addr, player._addr)
         
 
@@ -719,13 +604,12 @@ class Battle:
         '''
         Update a Player or Pokemon.
         '''
-
         if isinstance(entity, Player):
             lib.Battle_update_player(self._addr, entity._addr)
         elif isinstance(entity, Pokemon):
             lib.Battle_update_pokemon(self._addr, entity._addr)
         else:
-            raise Exception("Unsupported type of entity")
+            raise Exception("Wrong type: {}".format(type(entity)))
 
 
     lib.Battle_init.argtypes = [c_void_p]
@@ -734,7 +618,6 @@ class Battle:
         '''
         Initialize the battle.
         '''
-        
         lib.Battle_init(self._addr)
 
 
@@ -744,7 +627,6 @@ class Battle:
         '''
         Start a new simulation.
         '''
-        
         lib.Battle_start(self._addr)
 
 
@@ -754,7 +636,6 @@ class Battle:
         '''
         Get the overall battle outcome of the team.
         '''
-        
         battle_outcome = BattleOutcome()
         lib.Battle_get_outcome(self._addr, team, pointer(battle_outcome))
         return battle_outcome
@@ -766,7 +647,7 @@ class Battle:
         '''
         Get the battle log. Note: enable logging, set has_log to True.
         '''
-
+        # TODO: Make the log human-readable
         tenode = TimelineEventNode()
         lib.Battle_get_log(self._addr, pointer(tenode))
         event_list = []
@@ -789,7 +670,7 @@ class Battle:
         if name == "players":
             players_list = []
             for i in range(round(self.players_count)):
-                players_list.append(Player(lib.Battle_get_player(self._addr, i)))
+                players_list.append(Player.cast(lib.Battle_get_player(self._addr, i)))
             return players_list
         elif name == "outcome":
             return self.get_outcome(1)
@@ -828,22 +709,22 @@ class SimplePvPBattleOutcome(Structure):
 
 class _PvPStrategyInput(Structure):
     _fields_ = [("subject", c_void_p),
-                ("subject_hp", c_int),
-                ("subject_energy", c_int),
-                ("subject_shields", c_int),
                 ("enemy", c_void_p),
+                ("subject_hp", c_int),
                 ("enemy_hp", c_int),
+                ("subject_energy", c_int),
                 ("enemy_energy", c_int),
+                ("subject_shields", c_int),
                 ("enemy_shields", c_int)]
 
 class PvPStrategyInput:
 
     def __init__(self, _pvp_input):
-        self.subject = Pokemon(_pvp_input.subject)
+        self.subject = Pokemon.cast(_pvp_input.subject)
         self.subject.__dict__["hp"] = _pvp_input.subject_hp
         self.subject.__dict__["energy"] = _pvp_input.subject_energy
         self.subject.__dict__["shields"] = _pvp_input.subject_shields
-        self.enemy = Pokemon(_pvp_input.enemy)
+        self.enemy = Pokemon.cast(_pvp_input.enemy)
         self.enemy.__dict__["hp"] = _pvp_input.enemy_hp
         self.enemy.__dict__["energy"] = _pvp_input.enemy_energy
         self.enemy.__dict__["shields"] = _pvp_input.enemy_shields
@@ -853,7 +734,7 @@ PvPEventResponder = CFUNCTYPE(c_void_p, _PvPStrategyInput, POINTER(Action))
 
 
 
-class PvPStrategy:
+class PvPStrategy(Addressable):
 
     user_event_responders = []
 
@@ -871,25 +752,11 @@ class PvPStrategy:
 
     lib.PvPStrategy_new.argtypes = []
     lib.PvPStrategy_new.restype = c_void_p
-    def __init__(self, _src=None, **kwargs):
-        self.__dict__["_locked"] = True
-        if _src is not None:
-            if isinstance(_src, PvPStrategy):
-                self.__dict__["_addr"] = _src._addr
-            else:
-                self.__dict__["_addr"] = _src
-        else:
-            self.__dict__["_addr"] = lib.PvPStrategy_new()
-            self.__dict__["_locked"] = False
-        for name, value in kwargs.items():
-            self.__setattr__(name, value)
-
+    _constructor = lib.PvPStrategy_new
 
     lib.PvPStrategy_delete.argtypes = [c_void_p]
     lib.PvPStrategy_delete.restype = c_void_p
-    def __del__(self):
-        if self.__dict__.get("_locked") == False:
-            lib.PvPStrategy_delete(self._addr)
+    _destructor = lib.PvPStrategy_delete
 
 
     lib.PvPStrategy_set_on_free.argtypes = [c_void_p, c_void_p]
@@ -918,32 +785,11 @@ class PvPPokemon(Pokemon):
         
     lib.PvPPokemon_new.argtypes = [c_int, c_int, c_double, c_double, c_int]
     lib.PvPPokemon_new.restype = c_void_p
-    def __init__(self, _src=None, **kwargs):
-        self.__dict__["_locked"] = True
-        init_params = ["poketype1", "poketype2", "attack", "defense", "max_hp"]
-        if _src is not None:
-            if isinstance(_src, PvPPokemon):
-                self.__dict__["_addr"] = _src._addr
-            else:
-                self.__dict__["_addr"] = _src
-        else:
-            self.__dict__["_addr"] = lib.PvPPokemon_new(
-                kwargs.get("poketype1", -1),
-                kwargs.get("poketype2", -1),
-                kwargs.get("attack", 0),
-                kwargs.get("defense", 0),
-                kwargs.get("max_hp", 0))
-            self.__dict__["_locked"] = False
-            for name, value in kwargs.items():
-                if name not in init_params:
-                    self.__setattr__(name, value)
-
+    _constructor = lib.PvPPokemon_new
 
     lib.PvPPokemon_delete.argtypes = [c_void_p]
     lib.PvPPokemon_delete.restype = c_void_p
-    def __del__(self):
-        if self.__dict__.get("_locked") == False:
-            lib.PvPPokemon_delete(self._addr)
+    _destructor = lib.PvPPokemon_delete
 
 
     lib.PvPPokemon_set_num_shields.argtypes = [c_void_p, c_int]
@@ -957,24 +803,21 @@ class PvPPokemon(Pokemon):
 
 
 
-class SimplePvPBattle:
+class SimplePvPBattle(Addressable):
     
     lib.SimplePvPBattle_new.argtypes = [c_void_p, c_void_p]
     lib.SimplePvPBattle_new.restype = c_void_p
-    def __init__(self, pokemon_0, pokemon_1):
-        '''
-        Internally, shallow copy is used for both Pokemon.
-        Don't del them before this SimplePvPBattle instance finishes simulation!
-        '''
-        
-        self.__dict__["_addr"] = lib.SimplePvPBattle_new(pokemon_0._addr, pokemon_1._addr)
-        self.__dict__["_pokemon"] = [pokemon_0, pokemon_1] # Prevent garbage collection
-
+    _constructor = lib.SimplePvPBattle_new
 
     lib.SimplePvPBattle_delete.argtypes = [c_void_p]
     lib.SimplePvPBattle_delete.restype = c_void_p
-    def __del__(self):
-        lib.SimplePvPBattle_delete(self._addr)
+    _destructor = lib.SimplePvPBattle_delete
+
+
+    def __new__(cls, pkm_0, pkm_1):
+        assert isinstance(pkm_0, PvPPokemon)
+        assert isinstance(pkm_1, PvPPokemon)
+        return super().__new__(cls, pkm_0._addr, pkm_1._addr)
 
 
     lib.SimplePvPBattle_set_num_shields_max.argtypes = [c_void_p, c_int, c_int]
@@ -983,7 +826,6 @@ class SimplePvPBattle:
         '''
         Set the maximum number of shields allowed for both Pokemon.
         '''
-
         lib.SimplePvPBattle_set_num_shields_max(self._addr, num_shields_0, num_shields_1)
 
 
@@ -993,7 +835,6 @@ class SimplePvPBattle:
         '''
         Set custom strategy for Pokemon with index {pkm_idx}.
         '''
-
         assert isinstance(strategy, PvPStrategy)
         lib.SimplePvPBattle_set_strategy(self._addr, pkm_idx, pointer(strategy))
 
@@ -1004,7 +845,6 @@ class SimplePvPBattle:
         '''
         Initialize the battle.
         '''
-        
         lib.SimplePvPBattle_init(self._addr)
 
 
@@ -1014,7 +854,6 @@ class SimplePvPBattle:
         '''
         Start a new simulation.
         '''
-        
         lib.SimplePvPBattle_start(self._addr)
 
 
@@ -1024,7 +863,6 @@ class SimplePvPBattle:
         '''
         Get the simple pvp battle outcome.
         '''
-        
         pvp_battle_outcome = SimplePvPBattleOutcome()
         lib.SimplePvPBattle_get_outcome(self._addr, pointer(pvp_battle_outcome))
         return pvp_battle_outcome
@@ -1036,35 +874,37 @@ class SimplePvPBattle:
 
 
 
-class BattleMatrix:
+class BattleMatrix(Addressable):
 
     lib.BattleMatrix_new.argtypes = [c_int, c_void_p, c_bool]
     lib.BattleMatrix_new.restype = c_void_p
-    def __init__(self, pokemon_list, enum_shields=False):
-        self.pokemon_instances = [] # Prevent garbage collection
+    _constructor = lib.BattleMatrix_new
+
+    lib.BattleMatrix_delete.argtypes = [c_void_p]
+    lib.BattleMatrix_delete.restype = c_void_p
+    _destructor = lib.BattleMatrix_delete
+
+    
+    def __new__(cls, pokemon_list, enum_shields=False):
         pokemon_addrs = []
         for pkm in pokemon_list:
             assert isinstance(pkm, PvPPokemon)
-            self.pokemon_instances.append(pkm)
             pokemon_addrs.append(pkm._addr)
-        self.pkm_count = len(pokemon_addrs)
-        pkm_list_ptr = (c_void_p * self.pkm_count)(*pokemon_addrs)
-        self._addr = lib.BattleMatrix_new(self.pkm_count, pkm_list_ptr, enum_shields)
+        pkm_count = len(pokemon_addrs)
+        pkm_list_ptr = (c_void_p * pkm_count)(*pokemon_addrs)
+        instance = object.__new__(cls)
+        instance._locked = False
+        instance._addr = cls._constructor(pkm_count, pkm_list_ptr, enum_shields)
+        instance.pokemon_instances = pokemon_list # Prevent garbage collection
+        return instance
+ 
 
-        
-    lib.BattleMatrix_delete.argtypes = [c_void_p]
-    lib.BattleMatrix_delete.restype = c_void_p
-    def __del__(self):
-        lib.BattleMatrix_delete(self._addr)    
-
-        
     lib.BattleMatrix_run.argtypes = [c_void_p]
     lib.BattleMatrix_run.restype = c_void_p
     def run(self):
         '''
         Run the battle matrix.
         '''
-
         lib.BattleMatrix_run(self._addr)
         return self
 
@@ -1073,10 +913,9 @@ class BattleMatrix:
     lib.BattleMatrix_get.restype = c_void_p
     def get(self):
         '''
-        Return a 2D array of battle scores.
+        Return the matrix, a 2D array of battle scores.
         '''
-
-        n = self.pkm_count
+        n = len(self.pokemon_instances)
 
         STATIC_ROW = (n * c_double)
         DYNAMIC_ROW = POINTER(c_double)

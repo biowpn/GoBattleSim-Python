@@ -25,44 +25,42 @@ set_type_boosted_weather(0, 1)
 
 
 # Define moves
-move_confusion = Move(poketype=0, power=20, energy=15, duration=1600, dws=600)
-move_zen_headbutt = Move(poketype=0, power=12, energy=10, duration=1100, dws=850)
-move_psychic = Move(poketype=0, power=100, energy=-100, duration=2800, dws=1300)
-move_counter = Move(poketype=1, power=12, energy=8, duration=900, dws=700)
-move_bullet_punch = Move(poketype=2, power=9, energy=10, duration=900, dws=300)
-move_dynamic_punch = Move(poketype=1, power=90, energy=-50, duration=2700, dws=1200)
+# poketype, power, energy, duration, dws
+move_confusion = Move(0, 20, 15, 1600, 600)
+move_psychic = Move(0, 100, -100, 2800, 1300)
+move_counter = Move(1, 12, 8, 900, 700)
+move_dynamic_punch = Move(1, 90, -50, 2700, 1200)
 
 
 # Define Pokemon
-# Here we use L40 perfect Mewtwo.
+# poketype1, poketype2, attack, defense, max_hp
 # The three core stats have been calculated beforehand.
-pokemon_mewtwo = Pokemon(poketype1=0, attack=248.94450315, defense=155.68910197000002, max_hp=180)
+pokemon_mewtwo = Pokemon(0, -1, 248.94450315, 155.68910197000002, 180)
 pokemon_mewtwo.fmove = move_confusion
 pokemon_mewtwo.cmove = move_psychic
 
-pokemon_latios = Pokemon(poketype1=0, attack=223.65490283000003, defense=179.39810227, max_hp=162)
-pokemon_latios.fmove = move_zen_headbutt
-pokemon_latios.cmove = move_psychic
-
-pokemon_machamp = Pokemon(poketype1=1, attack=181.7700047492981, defense=127.02000331878662, max_hp=3600)
+pokemon_machamp = Pokemon(1, -1, 181.7700047492981, 127.02000331878662, 3600)
 pokemon_machamp.fmove = move_counter
 pokemon_machamp.cmove = move_dynamic_punch
 
 
 # Define party
-attacker_party = Party(pokemon=[pokemon_mewtwo])
+attacker_party = Party()
+attacker_party.add(pokemon_mewtwo)
 
-raid_boss_party = Party(pokemon=[pokemon_machamp])
-
+raid_boss_party = Party()
+raid_boss_party.add(pokemon_machamp)
 
 # Define player
-attacker = Player(parties=[attacker_party])
+attacker = Player()
+attacker.add(attacker_party)
 # Attacker is team 1
 attacker.team = 1
 # Use built-in strategy
 attacker.strategy = STRATEGY_ATTACKER_DODGE_ALL
 
-raid_boss = Player(parties=[raid_boss_party])
+raid_boss = Player()
+raid_boss.add(raid_boss_party)
 # Raid boss must be team 0
 raid_boss.team = 0
 # Defender strategy
@@ -70,7 +68,9 @@ raid_boss.strategy = STRATEGY_DEFENDER
 
 
 # Define battle
-battle = Battle(players=[raid_boss, attacker])
+battle = Battle()
+battle.add(raid_boss)
+battle.add(attacker)
 
 # Time limit unit in miliseconds
 battle.time_limit = 180000

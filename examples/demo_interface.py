@@ -58,7 +58,7 @@ pkm_list = [
     gbs.IPokemon(name="lugia", fmove="dragon tail", cmove="sky attack", cmove2="futuresight", cp=1500, pvp=True)
 ]
 
-matrix = gbs.BattleMatrix(pkm_list, True)
+matrix = gbs.BattleMatrix(pkm_list, pkm_list, True)
 matrix.run()
 print(*matrix.get(), sep='\n')
 print()

@@ -15,7 +15,7 @@ A Pokemon Go Battle Simulator (GoBattleSim) with Python API.
 
 The below instructions will get you a local version of GoBattleSim engine.
 
-First, install the package using pip in command line window:
+First, install the package:
 
 ```
 pip install gobattlesim
@@ -75,7 +75,7 @@ print(result)
 
 ```
 
-The `result` is a dict containing some performance metrics, such as "Average TDO%". A sample output could be:
+The `result` is a dict containing some performance metrics. An example output could be:
 
 ```
 Machamp duo T4 Tyranitar:

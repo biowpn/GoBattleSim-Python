@@ -144,32 +144,29 @@ def set_parameter(name, value):
 class Addressable:
     '''
     Base class for wrapper classes.
-    An <Addressable> object contains an address to the actual C++ object.
+    An <Addressable> object contains an address to a C++ object.
 
-    Upon creation of a new instance, the underlying C++ constructor will be called with positional arguments supplied.
-    If positional arguments are less than required, 0 will be used to fill the gap.
+    In initialization, the underlying C++ constructor will be called with positional arguments supplied.
+    If positional arguments are less than what's required, 0 will be used to fill the gap.
     
     Simple shallow copy is provided. Deepcopy is not supported.
 
     A cast() class method is also provided, which accepts an address (an int)
-    and returns an Addressable instance with the same address. Call this with caution.
+    and returns an Addressable instance with the same address. Use this with caution.
     '''
 
     _constructor = None
     _destructor = None
 
-    def __new__(cls, *args, **kwargs):
-        instance = object.__new__(cls)
-        instance.__dict__["_locked"] = False
-        args = args + (0,) * len(cls._constructor.argtypes)
-        instance.__dict__["_addr"] = cls._constructor(*args)
-        return instance
+    def __init__(self, *args):
+        self.__dict__["_locked"] = False
+        args = args + (0,) * len(self.__class__._constructor.argtypes)
+        self.__dict__["_addr"] = self.__class__._constructor(*args)
 
     def __del__(self):
         if not self._locked:
             self.__class__._destructor(self._addr)
             
-
     @classmethod
     def cast(cls, address):
         instance = object.__new__(cls)
@@ -270,8 +267,8 @@ class Move(Addressable):
     lib.Move_get_attr.restype = c_int
     def __getattr__(self, name):
         if name == "effect":
-            move_effect = MoveEffect()
-            lib.Move_get_effect(self._addr, pointer(move_effect))
+            effect = MoveEffect()
+            lib.Move_get_effect(self._addr, pointer(effect))
             return move_effect
         else:
             return lib.Move_get_attr(self._addr, name.encode('utf-8'))
@@ -288,12 +285,12 @@ class Move(Addressable):
             if isinstance(value, MoveEffect):
                 lib.Move_set_effect(self._addr, pointer(value))
             elif isinstance(value, dict):
-                me = MoveEffect(**value)
-                lib.Move_set_effect(self._addr, pointer(me))
+                effect = MoveEffect(**value)
+                lib.Move_set_effect(self._addr, pointer(effect))
             else:
-                raise Exception("Wrong type for MoveEffect {}".format(type(value)))
+                raise TypeError("Expected MoveEffect/dict, got {}".format(type(value)))
         else:
-            lib.Move_set_attr(self._addr, name.encode('utf-8'), c_int(value))
+            lib.Move_set_attr(self._addr, name.encode('utf-8'), value)
 
 
 
@@ -535,6 +532,7 @@ class Strategy(Addressable):
             t_action_p[0].delay = action.delay
             t_action_p[0].value = action.value
         t_er = EventResponder(event_responder_outer)
+        # Prevent garbage collection
         Strategy.user_event_responders.append(t_er)
         return t_er
 
@@ -609,7 +607,7 @@ class Battle(Addressable):
         elif isinstance(entity, Pokemon):
             lib.Battle_update_pokemon(self._addr, entity._addr)
         else:
-            raise Exception("Wrong type: {}".format(type(entity)))
+            raise TypeError("Expected Player/Pokemon, got {}".format(type(entity)))
 
 
     lib.Battle_init.argtypes = [c_void_p]
@@ -814,10 +812,10 @@ class SimplePvPBattle(Addressable):
     _destructor = lib.SimplePvPBattle_delete
 
 
-    def __new__(cls, pkm_0, pkm_1):
+    def __init__(self, pkm_0, pkm_1):
         assert isinstance(pkm_0, PvPPokemon)
         assert isinstance(pkm_1, PvPPokemon)
-        return super().__new__(cls, pkm_0._addr, pkm_1._addr)
+        super().__init__(pkm_0._addr, pkm_1._addr)
 
 
     lib.SimplePvPBattle_set_num_shields_max.argtypes = [c_void_p, c_int, c_int]
@@ -885,19 +883,18 @@ class BattleMatrix(Addressable):
     _destructor = lib.BattleMatrix_delete
 
     
-    def __new__(cls, row_pkm, col_pkm, enum_shields=False):
+    def __init__(self, row_pkm, col_pkm, enum_shields=False):
+        '''
+        {row_pkm} and {col_pkm} are lists of PvPPokemon
+        '''
         row_pkm_addrs = [pkm._addr for pkm in row_pkm]
         col_pkm_addrs = [pkm._addr for pkm in col_pkm]
-        row_size = len(row_pkm_addrs)
-        col_size = len(col_pkm_addrs)
-        row_pkm_arr = (c_void_p * row_size)(*row_pkm_addrs)
-        col_pkm_arr = (c_void_p * col_size)(*col_pkm_addrs)
-        instance = object.__new__(cls)
-        instance._locked = False
-        instance._addr = cls._constructor(row_pkm_arr, row_size, col_pkm_arr, col_size, enum_shields)
-        instance.row_size = row_size
-        instance.col_size = col_size
-        return instance
+        self.row_size = len(row_pkm_addrs)
+        self.col_size = len(col_pkm_addrs)
+        row_pkm_arr = (c_void_p * self.row_size)(*row_pkm_addrs)
+        col_pkm_arr = (c_void_p * self.col_size)(*col_pkm_addrs)
+
+        super().__init__(row_pkm_arr, self.row_size, col_pkm_arr, self.col_size, enum_shields)
  
 
     lib.BattleMatrix_run.argtypes = [c_void_p]

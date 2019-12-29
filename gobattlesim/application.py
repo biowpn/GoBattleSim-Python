@@ -1,5 +1,6 @@
 
 '''
+This file is for a helper for GoBattleSim-Host.
 Handles client request and return with output.
 '''
 

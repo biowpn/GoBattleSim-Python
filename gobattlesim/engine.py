@@ -165,23 +165,40 @@ class Addressable:
     In initialization, the underlying C++ constructor will be called with positional arguments supplied.
     If positional arguments are less than what's required, 0 will be used to fill the gap.
 
-    Simple shallow copy is provided. Deepcopy is not supported.
+    Simple shallow copy is supported. Deepcopy is not supported.
 
     A cast() class method is also provided, which accepts an address (an int)
-    and returns an Addressable instance with the same address. Use this with caution.
+    and returns an Addressable instance with the same address. Use with caution.
     '''
 
-    _constructor = None
-    _destructor = None
+    @staticmethod
+    def _constructor(*args):
+        '''
+        Derived class should override this method.
+        This method should call the underlying C++ constructor,
+        and return the address to the newly created instance.
+        '''
+        return None
+
+    @staticmethod
+    def _destructor(addr):
+        '''
+        Derived class should override this method.
+        This method should call the underlying C++ destructor,
+        given the address of the instance to be deconstructed.
+        '''
+        return
 
     def __init__(self, *args):
         self.__dict__["_locked"] = False
-        args = args + (0,) * len(self.__class__._constructor.argtypes)
-        self.__dict__["_addr"] = self.__class__._constructor(*args)
+        self.__dict__["_addr"] = self._constructor(*args)
+        self._addr = self._addr
 
     def __del__(self):
-        if not self.__dict__["_locked"]:
-            self.__class__._destructor(self.__dict__["_addr"])
+        locked = self.__dict__.get("_locked", False)
+        addr = self.__dict__.get("_addr")
+        if not locked and addr:
+            self._destructor(addr)
 
     @classmethod
     def cast(cls, address):
@@ -266,11 +283,17 @@ class Move(Addressable):
 
     lib.Move_new.argtypes = [c_int, c_int, c_int, c_int, c_int]
     lib.Move_new.restype = c_void_p
-    _constructor = lib.Move_new
+    @staticmethod
+    def _constructor(*args):
+        if len(args) < 5:
+            args = list(args) + [0] * (5 - len(args))
+        return lib.Move_new(*args)
 
     lib.Move_delete.argtypes = [c_void_p]
     lib.Move_delete.restype = c_void_p
-    _destructor = lib.Move_delete
+    @staticmethod
+    def _destructor(addr):
+        return lib.Move_delete(addr)
 
     lib.Move_has_attr.argtypes = [c_void_p, c_char_p]
     lib.Move_has_attr.restype = c_bool
@@ -316,11 +339,15 @@ class Pokemon(Addressable):
 
     lib.Pokemon_new.argtypes = [c_int, c_int, c_double, c_double, c_int]
     lib.Pokemon_new.restype = c_void_p
-    _constructor = lib.Pokemon_new
+    @staticmethod
+    def _constructor(*args):
+        return lib.Pokemon_new(*args)
 
     lib.Pokemon_delete.argtypes = [c_void_p]
     lib.Pokemon_delete.restype = c_void_p
-    _destructor = lib.Pokemon_delete
+    @staticmethod
+    def _destructor(addr):
+        return lib.Pokemon_delete(addr)
 
     lib.Pokemon_get_fmove.argtypes = [c_void_p, c_int]
     lib.Pokemon_get_fmove.restype = c_void_p
@@ -386,11 +413,15 @@ class Party(Addressable):
 
     lib.Party_new.argtypes = []
     lib.Party_new.restype = c_void_p
-    _constructor = lib.Party_new
+    @staticmethod
+    def _constructor(*args):
+        return lib.Party_new(*args)
 
     lib.Party_delete.argtypes = [c_void_p]
     lib.Party_delete.restype = c_void_p
-    _destructor = lib.Party_delete
+    @staticmethod
+    def _destructor(addr):
+        lib.Party_delete(addr)
 
     lib.Party_get_pokemon.argtypes = [c_void_p, c_int]
     lib.Party_get_pokemon.restype = c_void_p
@@ -448,11 +479,15 @@ class Player(Addressable):
 
     lib.Player_new.argtypes = []
     lib.Player_new.restype = c_void_p
-    _constructor = lib.Player_new
+    @staticmethod
+    def _constructor(*args):
+        return lib.Player_new(*args)
 
     lib.Player_delete.argtypes = [c_void_p]
     lib.Player_delete.restype = c_void_p
-    _destructor = lib.Player_delete
+    @staticmethod
+    def _destructor(addr):
+        lib.Player_delete(addr)
 
     lib.Player_get_party.argtypes = [c_void_p, c_int]
     lib.Player_get_party.restype = c_void_p
@@ -556,11 +591,15 @@ class Strategy(Addressable):
 
     lib.Strategy_new.argtypes = []
     lib.Strategy_new.restype = c_void_p
-    _constructor = lib.Strategy_new
+    @staticmethod
+    def _constructor(*args):
+        return lib.Strategy_new(*args)
 
     lib.Strategy_delete.argtypes = [c_void_p]
     lib.Strategy_delete.restype = c_void_p
-    _destructor = lib.Strategy_delete
+    @staticmethod
+    def _destructor(addr):
+        lib.Strategy_delete(addr)
 
     lib.Strategy_set_on_free.argtypes = [c_void_p, c_void_p]
     lib.Strategy_set_on_free.restype = c_void_p
@@ -587,11 +626,15 @@ class Battle(Addressable):
 
     lib.Battle_new.argtypes = []
     lib.Battle_new.restype = c_void_p
-    _constructor = lib.Battle_new
+    @staticmethod
+    def _constructor(*args):
+        return lib.Battle_new(*args)
 
     lib.Battle_delete.argtypes = [c_void_p]
     lib.Battle_delete.restype = c_void_p
-    _destructor = lib.Battle_delete
+    @staticmethod
+    def _destructor(addr):
+        lib.Battle_delete(addr)
 
     lib.Battle_get_player.argtypes = [c_void_p, c_int]
     lib.Battle_get_player.restype = c_void_p
@@ -763,11 +806,15 @@ class PvPStrategy(Addressable):
 
     lib.PvPStrategy_new.argtypes = []
     lib.PvPStrategy_new.restype = c_void_p
-    _constructor = lib.PvPStrategy_new
+    @staticmethod
+    def _constructor(*args):
+        return lib.PvPStrategy_new(*args)
 
     lib.PvPStrategy_delete.argtypes = [c_void_p]
     lib.PvPStrategy_delete.restype = c_void_p
-    _destructor = lib.PvPStrategy_delete
+    @staticmethod
+    def _destructor(addr):
+        lib.PvPStrategy_delete(addr)
 
     lib.PvPStrategy_set_on_free.argtypes = [c_void_p, c_void_p]
     lib.PvPStrategy_set_on_free.restype = c_void_p
@@ -795,11 +842,15 @@ class PvPPokemon(Pokemon):
 
     lib.PvPPokemon_new.argtypes = [c_int, c_int, c_double, c_double, c_int]
     lib.PvPPokemon_new.restype = c_void_p
-    _constructor = lib.PvPPokemon_new
+    @staticmethod
+    def _constructor(*args):
+        return lib.PvPPokemon_new(*args)
 
     lib.PvPPokemon_delete.argtypes = [c_void_p]
     lib.PvPPokemon_delete.restype = c_void_p
-    _destructor = lib.PvPPokemon_delete
+    @staticmethod
+    def _destructor(addr):
+        lib.PvPPokemon_delete(addr)
 
     lib.PvPPokemon_set_num_shields.argtypes = [c_void_p, c_int]
     lib.PvPPokemon_set_num_shields.restype = c_void_p
@@ -815,11 +866,15 @@ class SimplePvPBattle(Addressable):
 
     lib.SimplePvPBattle_new.argtypes = [c_void_p, c_void_p]
     lib.SimplePvPBattle_new.restype = c_void_p
-    _constructor = lib.SimplePvPBattle_new
+    @staticmethod
+    def _constructor(*args):
+        return lib.SimplePvPBattle_new(*args)
 
     lib.SimplePvPBattle_delete.argtypes = [c_void_p]
     lib.SimplePvPBattle_delete.restype = c_void_p
-    _destructor = lib.SimplePvPBattle_delete
+    @staticmethod
+    def _destructor(addr):
+        return lib.SimplePvPBattle_delete(addr)
 
     def __init__(self, pkm_0, pkm_1):
         assert isinstance(pkm_0, PvPPokemon)
@@ -886,11 +941,15 @@ class BattleMatrix(Addressable):
 
     lib.BattleMatrix_new.argtypes = [c_void_p, c_int, c_void_p, c_int, c_bool]
     lib.BattleMatrix_new.restype = c_void_p
-    _constructor = lib.BattleMatrix_new
+    @staticmethod
+    def _constructor(*args):
+        return lib.BattleMatrix_new(*args)
 
     lib.BattleMatrix_delete.argtypes = [c_void_p]
     lib.BattleMatrix_delete.restype = c_void_p
-    _destructor = lib.BattleMatrix_delete
+    @staticmethod
+    def _destructor(addr):
+        lib.BattleMatrix_delete(addr)
 
     def __init__(self, row_pkm, col_pkm, enum_shields=False):
         '''

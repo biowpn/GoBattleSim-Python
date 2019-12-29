@@ -16,7 +16,7 @@ set_num_types(3)
 # Each type is an index
 # In this demo, 0 = Psychic, 1 = Fighting, 2 = Steel
 # Set the relevant type effectiveness
-set_effectiveness(0, 1, 1.6)    
+set_effectiveness(0, 1, 1.6)
 set_effectiveness(0, 2, 1/1.6)
 set_effectiveness(1, 0, 1/1.6)
 set_effectiveness(1, 2, 1.6)
@@ -79,7 +79,8 @@ battle.weather = 1
 
 # Run one simulation with battle log
 battle.has_log = True
-battle.init()                           # Important: must init() before every new simulation
+# Important: must init() before every new simulation
+battle.init()
 battle.start()
 
 
@@ -99,16 +100,3 @@ print("The battle lasts", battle.outcome.duration / 1000, "seconds")
 print("Mewtwo deals", pokemon_mewtwo.tdo, "damage")
 print("When the battle ends, Mewtwo has", pokemon_mewtwo.hp, "HP left")
 print("Boss Machamp has", pokemon_machamp.hp, "HP left")
-
-
-
-
-
-
-
-
-
-
-    
-
-

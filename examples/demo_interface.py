@@ -53,26 +53,15 @@ print()
 # Battle Matrix
 
 pkm_list = [
-    gbs.IPokemon(name="tyranitar", fmove="bite", cmove="crunch", cmove2="fire blast", cp=1500, pvp=True),
-    gbs.IPokemon(name="machamp", fmove="counter", cmove="cross chop", cmove2="rock slide", cp=1500, pvp=True),
-    gbs.IPokemon(name="lugia", fmove="dragon tail", cmove="sky attack", cmove2="futuresight", cp=1500, pvp=True)
+    gbs.IPokemon(name="tyranitar", fmove="bite", cmove="crunch",
+                 cmove2="fire blast", cp=1500, pvp=True),
+    gbs.IPokemon(name="machamp", fmove="counter", cmove="cross chop",
+                 cmove2="rock slide", cp=1500, pvp=True),
+    gbs.IPokemon(name="lugia", fmove="dragon tail",
+                 cmove="sky attack", cmove2="futuresight", cp=1500, pvp=True)
 ]
 
 matrix = gbs.BattleMatrix(pkm_list, pkm_list, True)
 matrix.run()
 print(*matrix.get(), sep='\n')
 print()
-
-
-
-
-
-
-
-
-
-
-
-
-
-

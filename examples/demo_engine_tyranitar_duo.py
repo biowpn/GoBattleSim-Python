@@ -61,6 +61,8 @@ attacker.strategy = STRATEGY_ATTACKER_NO_DODGE
 
 # Use custom strategy. Juicy!
 # The on_free callback is called when the subject Pokemon is free. It should return an Action object.
+
+
 def burst_charged_on_free(state):
     # This is "Bursting" Charged Move strategy - use Charged Moves in a row after energy is full
     if state.subject.energy + state.subject.cmove.energy >= 0:
@@ -82,15 +84,14 @@ raid_boss.team = 0
 raid_boss.strategy = STRATEGY_DEFENDER
 
 
-
 # Define battle
 battle = Battle()
 battle.players = [raid_boss, attacker, attacker]
 battle.time_limit = 180000
-battle.weather = -1             # Since we didn't define which weather boost which types,
-                                # all types are default to be boosted in weather 0.
-                                # We set it to -1 to indicate no boost.
-
+# Since we didn't define which weather boost which types,
+battle.weather = -1
+# all types are default to be boosted in weather 0.
+# We set it to -1 to indicate no boost.
 
 
 # Run many simulations
@@ -100,7 +101,8 @@ print(f"In {NUM_SIMS} battles:")
 for i in range(NUM_SIMS):
     battle.init()   # Important: must init() before every new simulation
     battle.start()
-    battle_outcome = battle.get_outcome(1)    # From team 1 (attacker) 's perspective
+    # From team 1 (attacker) 's perspective
+    battle_outcome = battle.get_outcome(1)
     sum_duration += battle_outcome.duration
     sum_wins += 1 if battle_outcome.win else 0
     sum_tdo_percent += battle_outcome.tdo_percent
@@ -109,5 +111,3 @@ print("Average Duration:", sum_duration / NUM_SIMS)
 print("Win rate:", sum_wins / NUM_SIMS)
 print("Average TDO%:", sum_tdo_percent / NUM_SIMS)
 print("Average #Deaths:", sum_deaths / NUM_SIMS)
-
-

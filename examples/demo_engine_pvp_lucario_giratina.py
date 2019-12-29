@@ -7,7 +7,6 @@ from gobattlesim.engine import *
 ###########################################################################
 
 
-
 # Set the stage multipliers for attack/defense buff/debuff.
 # These values can be found in game master.
 set_stage_multipliers([0.5, 0.5714286, 0.66666669, 0.8, 1, 1.25, 1.5, 1.75, 2])
@@ -68,5 +67,3 @@ outcome = battle.get_outcome()
 
 print("Lucario TDO%:", outcome.tdo_percent[0])
 print("Giratina TDO%:", outcome.tdo_percent[1])
-
-

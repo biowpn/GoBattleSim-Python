@@ -240,7 +240,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("query", type=str,
                         help="PokeQuery string")
-    parser.add_argument("game_master", type=argparse.FileType('r'),
+    parser.add_argument("game_master", type=str,
                         help="path to official game master json")
     parser.add_argument("-c", "--count", action="store_true",
                         help="only show the number of matches")

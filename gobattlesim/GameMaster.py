@@ -74,11 +74,10 @@ class GameMaster:
     def parse(self, file):
         '''
         Load and process a game master json file @param file.
-        @param file can be a path, or a file object.
+        @param path to game master json.
         '''
-        if type(file) is str:
-            file = open(file)
-        gmdata = json.load(file)
+        with open(file) as fd:
+            gmdata = json.load(fd)
 
         for template in gmdata["itemTemplates"]:
             tid = template['templateId']
@@ -294,7 +293,7 @@ class GameMaster:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("infile", type=argparse.FileType('r'),
+    parser.add_argument("infile", type=str,
                         help="path to official game master json")
     parser.add_argument("-o", "--out", type=argparse.FileType('w'), default=sys.stdout,
                         help="parsing output")

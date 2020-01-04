@@ -122,14 +122,20 @@ def PokeQuery(query_str, pkm=None, movetype="fast"):
 
     def eval_simple(op, vstack):
         if OPS[op] == 0:
+            if len(vstack) < 2:
+                raise Exception(f"missing operand for operator {op}")
             rhs = vstack.pop()
             lhs = vstack.pop()
             vstack.append(lambda x: lhs(x) or rhs(x))
         elif OPS[op] == 1:
+            if len(vstack) < 2:
+                raise Exception(f"missing operand for operator {op}")
             rhs = vstack.pop()
             lhs = vstack.pop()
             vstack.append(lambda x: lhs(x) and rhs(x))
         elif OPS[op] == 2:
+            if len(vstack) < 1:
+                raise Exception(f"missing operand for operator {op}")
             rhs = vstack.pop()
             vstack.append(lambda x: not rhs(x))
 

@@ -1,30 +1,27 @@
 
-# GoBattleSim Engine with Python API
+# GoBattleSim-Python
 
-A Pokemon Go Battle Simulator (GoBattleSim) with Python API.
+Wrapper for [GoBattleSim-Engine](https://github.com/biowpn/GoBattleSim-Engine). Also includes GameMaster & PokeQuery module.
 
-## Getting Started
 
-### Prerequisites
+## Prerequisites
 
 64-bit Windows/Linux
 
 64-bit Python 3.5+
 
-### Installing
+## Installing
 
-The below instructions will get you a local version of GoBattleSim engine.
-
-First, install the package:
+`git clone` the repository and install the package as:
 
 ```
-pip install gobattlesim
+pip install -e .
 ```
 
-Then:
+To test the package is good:
 
 ```
-import gobattlesim.interface
+python -m gobattlesim.test
 ```
 
 If no error pops up, then you are good to go!
@@ -35,84 +32,28 @@ Some of the common errors include:
 WindowsError: ... not a valid Win32 application
 ```
 
-This could be that your Python is 32-bit. I only compiled the simulator core into a 64-bit DLL. Therefore, again, 64-bit Python is required.
+This could be that your Python is 32-bit. I only compiled a 64-bit library. Therefore, again, 64-bit Python is required.
 
-## Quick Start
+## Usage: Game Master parsing
 
-The `gobattlesim.interface` module saves a lot of typing. To use the module, you need to first acquire a game master file in json format.
-You can find one in sources online such as [this repo](https://github.com/pokemongo-dev-contrib/pokemongo-game-master).
-
-Suppose the game master file is "GAME_MASTER.json" and is placed in the same folder with your script. Then do:
+The official game master is not very organized. To make it more so, you can do
 
 ```
-import gobattlesim.interface as gbs
-
-gbs.GameMaster("GAME_MASTER.json").apply()
+python -m gobattlesim.GameMaster data/GAME_MASTER.json -o data/GBS_GAME_MASTER.json
 ```
 
-Now game master file has been parsed and applied to the simulator.
+The result can be used to configure [GoBattleSim-Engine](https://github.com/biowpn/GoBattleSim-Engine).
 
-Let's run some simulations on the classic Tyranitar Duo with two teams of max perfect Machamp:
+## Usage: PokeQuery
 
-```
-result = gbs.quick_raid_battle(
-    {
-        "name": "machamp",
-        "fmove": "counter",
-        "cmove": "dynamic punch"
-    },
-    {
-        "name": "tyranitar",
-        "fmove": "bite",
-        "cmove": "crunch",
-        "tier": 4
-    },
-    player_multiplier=2
-)
-
-print("Machamp duo T4 Tyranitar:")
-print(result)
+Finding Pokemon matching some criteria in game master. For example:
 
 ```
-
-The `result` is a dict containing some performance metrics. An example output could be:
-
-```
-Machamp duo T4 Tyranitar:
-{'win': 1.0, 'duration': 130157.966, 'tdo_percent': 1.010376666666664, 'num_deaths': 3.506}
+python -m gobattlesim.PokeQuery "fire & flying" data/GAME_MASTER.json
 ```
 
-One may find `gobattlesim.interface.quick_raid_battle` (and `gobattlesim.interface.quick_pvp_battle`) rather limited, 
-and may want more control on the simulations. If so, the `gobattlesim.engine` is best for this purpose.
+This should return the list of Pokemon that are Fire and Flying dual-typed. 
 
-More [examples](https://github.com/ymenghank/GoBattleSim-Python/tree/master/examples) of using `gobattlesim.engine` alone to run simulations have been given in the repo.
+Most of the in-game search features are supported. You can also search by base stats.
 
-
-## Documentations
-
-Coming up!
-
-
-## Contributing
-
-The feature requests and known bugs are listed in the [issues](https://github.com/ymenghank/GoBattleSim-Python/issues) section.
-You are more than welcome to help by adding items to that list!
-
-Note that this repo is the interface part of the simulator. The core part that contains the actual battle logic will be in another repo.
-
-## Versioning
-
-We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/ymenghank/GoBattleSim-Python/tags). 
-
-## Author
-
-* **Hank Meng** - *Initial work* - [BIOWP](https://github.com/ymenghank)
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
-
-## Acknowledgments
-
-* [Web GoBattleSim](https://github.com/ymenghank/GoBattleSim) has been for over a year. A lot of improvements have been made, but the key issue persists - speed performance. 
-So I wanted to make a faster one. I want to make it fly. And there it is, core engine written in C++, exported as DLL, and wrapped in Python.
+Other options are also available; run with `-h` to see the list of them.

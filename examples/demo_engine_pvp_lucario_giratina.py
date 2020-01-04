@@ -28,7 +28,7 @@ set_effectiveness(4, 2, 1/1.6)
 
 
 # Define moves
-# poketype, power, energy, duration, dws (ununsed for PvP)
+# pokeType, power, energy, duration, dws (ununsed for PvP)
 # Different from raid battles, the durations are in turns.
 move_counter = Move(1, 8, 7, 2)
 move_shadow_claw = Move(3, 6, 8, 2)
@@ -44,7 +44,7 @@ move_ancient_power = Move(4, 70, -45)
 move_ancient_power.effect = MoveEffect(0.1, 2, 2)
 
 # Define Pokemon
-# poketype1, poketype2, attack, defense, max_hp
+# pokeType1, pokeType2, attack, defense, max_hp
 # The three core stats have been calculated beforehand.
 pokemon_lucario = PvPPokemon(1, 2, 190.39096, 121.08865056, 142)
 pokemon_lucario.fmove = move_counter

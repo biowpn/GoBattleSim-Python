@@ -25,7 +25,7 @@ set_type_boosted_weather(0, 1)
 
 
 # Define moves
-# poketype, power, energy, duration, dws
+# pokeType, power, energy, duration, dws
 move_confusion = Move(0, 20, 15, 1600, 600)
 move_psychic = Move(0, 100, -100, 2800, 1300)
 move_counter = Move(1, 12, 8, 900, 700)
@@ -33,7 +33,7 @@ move_dynamic_punch = Move(1, 90, -50, 2700, 1200)
 
 
 # Define Pokemon
-# poketype1, poketype2, attack, defense, max_hp
+# pokeType1, pokeType2, attack, defense, max_hp
 # The three core stats have been calculated beforehand.
 pokemon_mewtwo = Pokemon(0, -1, 248.94450315, 155.68910197000002, 180)
 pokemon_mewtwo.fmove = move_confusion

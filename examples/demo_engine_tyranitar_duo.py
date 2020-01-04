@@ -24,14 +24,14 @@ set_effectiveness(2, 0, 1/1.6)
 
 
 # Define moves
-# poketype, power, energy, duration, dws
+# pokeType, power, energy, duration, dws
 move_counter = Move(0, 12, 8, 900, 700)
 move_dynamic_punch = Move(0, 90, -50, 2700, 1200)
 move_bite = Move(1, 6, 4, 500, 300)
 move_stone_edge = Move(2, 100, -100, 2300, 700)
 
 # Define Pokemon
-# poketype1, poketype2, attack, defense, max_hp
+# pokeType1, pokeType2, attack, defense, max_hp
 # The three core stats have been calculated beforehand.
 pokemon_machamp = Pokemon(0, -1, 196.78470249, 136.72190173, 174)
 pokemon_machamp.fmove = move_counter

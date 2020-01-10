@@ -3,7 +3,7 @@ import argparse
 import copy
 import itertools
 
-from .GameMaster import PoketypeList, InversedPoketypeList, GameMaster
+from .GameMaster import PoketypeList, GameMaster
 
 
 POKE_QUERY_LOGICAL_OPERATORS = {
@@ -19,9 +19,12 @@ POKE_QUERY_LOGICAL_OPERATORS = {
 def BasicPokeQuery(query_str, pkm=None, movetype="fast"):
     '''
     Create a basic PokeQuery from string @param query_str.
-    @param pkm is needed if the entity is Move.
-    Return a callback predicate that accepts one parameter (the entity to be examined).
+
+    @param pkm subject Pokemon. This parameter is needed if the entity to search is Move
+    @param movetype used with searching Move
+    @return a predicate/callback that accepts one parameter (the entity to be examined)
     '''
+
     query_str = str(query_str).lower().strip(" *")
 
     # Default predicate for empty query
@@ -32,7 +35,7 @@ def BasicPokeQuery(query_str, pkm=None, movetype="fast"):
             pd3 = BasicPokeQuery("exclusive", pkm, movetype)
             return lambda x: (pd1(x) or pd2(x) or pd3(x))
         else:
-            return lambda x: True
+            return lambda x: False
 
     # Match by dex. For Pokemon
     elif query_str.isdigit():
@@ -59,12 +62,12 @@ def BasicPokeQuery(query_str, pkm=None, movetype="fast"):
     # Match by rarity Legendary. For Pokemon
     elif query_str == "legendary":
         def predicate(entity):
-            return entity.get('rarity') == 'POKEMON_RARITY_LEGENDARY'
+            return entity.get("rarity") == "POKEMON_RARITY_LEGENDARY"
 
     # Match by rarity Mythical. For Pokemon
     elif query_str == "mythic" or query_str == "mythical":
         def predicate(entity):
-            return entity.get('rarity') == 'POKEMON_RARITY_MYTHIC'
+            return entity.get("rarity") == "POKEMON_RARITY_MYTHIC"
 
     # Match by current move availability
     elif query_str == "current":
@@ -93,9 +96,12 @@ def BasicPokeQuery(query_str, pkm=None, movetype="fast"):
 
 def PokeQuery(query_str, pkm=None, movetype="fast"):
     '''
-    Create a PokeQuery from string {query_str}. Supports logical operators and parenthesis.
-    The {pkm} is needed if the entity if moves.
-    Return a callback predicate that accepts one parameter (the entity to be examined).
+    Create a PokeQuery from string @param query_str.
+    Supports logical operators and parenthesis.
+
+    @param pkm subject Pokemon. This parameter is needed if the entity to search is Move.
+    @param movetype used with searching Move
+    @return a callback/predicate that accepts one parameter (the entity to be examined).
     '''
 
     global POKE_QUERY_LOGICAL_OPERATORS
@@ -119,6 +125,9 @@ def PokeQuery(query_str, pkm=None, movetype="fast"):
 
     vstack = []
     opstack = []
+
+    def default_pred(x):
+        return False
 
     def eval_simple(op, vstack):
         if OPS[op] == 0:
@@ -157,112 +166,130 @@ def PokeQuery(query_str, pkm=None, movetype="fast"):
     while opstack:
         eval_simple(opstack.pop(), vstack)
 
-    return vstack.pop()
+    return vstack.pop() if vstack else default_pred
 
 
-def batch_pokemon(self, pkm_dict):
+def batch_pokemon(pkm_qry, game_master: GameMaster):
     '''
-    Return the product by all possible values of all the wild card queries, if any.
+    Return a list of Pokemon-Move combinations that match the query input @param pkm_qry in GameMaster @param game_master.
 
-    The attribute fields that can contain wild card query:
+    @param pkm_qry is a dict, which may have the following fields:
+
         name
         fmove
         cmove
-        cmove2
-    [cmove2] is optional, while the others are mandoratory.
+        [optional] cmove2
+
+    All fields must be str, and can be PokeQuery.
     '''
     results = []
+
+    species_qry = pkm_qry["name"]
+    fmove_qry = pkm_qry["fmove"]
+    cmove_qry = pkm_qry["cmove"]
+    cmove2_qry = pkm_qry.get("cmove2", "")
+
     species_matches = []
     fmove_matches = []
     cmove_matches = []
     cmove2_matches = []
-    has_cmove2 = "cmove2" in pkm_dict
-    pkm_dict['fmove'] = pkm_dict.get("fmove", "*")
-    pkm_dict['cmove'] = pkm_dict.get("cmove", "*")
 
     # Try for direct match first. Only if no direct match will the program try for query match.
-    try:
-        species_matches = [self.search_pokemon(pkm_dict['name'])]
-    except:
-        species_matches = self.search_pokemon(
-            PokeQuery(pkm_dict['name']), True)
-    try:
-        fmove_matches = [self.search_fmove(pkm_dict['fmove'])]
-    except:
-        pass
-    try:
-        cmove_matches = [self.search_cmove(pkm_dict['cmove'])]
-    except:
-        pass
-    if has_cmove2:
-        try:
-            cmove2_matches = [self.search_cmove(pkm_dict['cmove2'])]
-        except:
-            pass
+    species_direct_match = game_master.search_pokemon(species_qry)
+    if species_direct_match:
+        species_matches.append(species_direct_match)
+    else:
+        species_matches = game_master.search_pokemon(
+            PokeQuery(species_qry), True)
 
     for species in species_matches:
-        if fmove_matches:
-            cur_fmove_matches = fmove_matches
+        fmove_direct_match = game_master.search_pve_fmove(fmove_qry)
+        if fmove_direct_match:
+            fmove_matches.append(fmove_direct_match)
         else:
-            cur_fmove_matches = self.search_fmove(
-                PokeQuery(pkm_dict['fmove'], species, "fast"), True)
-        if cmove_matches:
-            cur_cmove_matches = cmove_matches
+            fmove_matches = game_master.search_pve_fmove(
+                PokeQuery(fmove_qry, species, "fast"), True)
+
+        cmove_direct_match = game_master.search_pve_cmove(cmove_qry)
+        if cmove_direct_match:
+            cmove_matches.append(cmove_direct_match)
         else:
-            cur_cmove_matches = self.search_cmove(
-                PokeQuery(pkm_dict['cmove'], species, "charged"), True)
-        if has_cmove2:
+            cmove_matches = game_master.search_pve_cmove(
+                PokeQuery(cmove_qry, species, "charged"), True)
+
+        cmove2_direct_match = game_master.search_pve_cmove(cmove2_qry)
+        if cmove2_direct_match:
+            cmove2_matches.append(cmove2_direct_match)
+        else:
+            cmove2_matches = game_master.search_pve_cmove(
+                PokeQuery(cmove2_qry, species, "charged"), True)
+
+        for fmove, cmove in itertools.product(fmove_matches, cmove_matches):
+            pkm = copy.copy(pkm_qry)
+            for k in species:
+                pkm[k] = species[k]
+            pkm["fmove"] = fmove["name"]
+            pkm["cmove"] = cmove["name"]
             if cmove2_matches:
-                cur_cmove2_matches = cmove2_matches
+                for cmove2 in cmove2_matches:
+                    if cmove2["name"] != cmove["name"]:
+                        pkm = copy.copy(pkm)
+                        pkm["cmove2"] = cmove2["name"]
+                        results.append(pkm)
             else:
-                cur_cmove2_matches = self.search_cmove(
-                    PokeQuery(pkm_dict['cmove2'], species, "charged"), True)
-            for fmove, cmove, cmove2 in itertools.product(cur_fmove_matches, cur_cmove_matches, cur_cmove2_matches):
-                cur_pokemon = copy.copy(pkm_dict)
-                cur_pokemon['name'] = species['name']
-                cur_pokemon['fmove'] = fmove['name']
-                cur_pokemon['cmove'] = cmove['name']
-                cur_pokemon['cmove2'] = cmove2['name']
-                if cur_pokemon['cmove2'] != cur_pokemon['cmove']:
-                    results.append(cur_pokemon)
-        else:
-            for fmove, cmove in itertools.product(cur_fmove_matches, cur_cmove_matches):
-                cur_pokemon = copy.copy(pkm_dict)
-                cur_pokemon['name'] = species['name']
-                cur_pokemon['fmove'] = fmove['name']
-                cur_pokemon['cmove'] = cmove['name']
-                results.append(cur_pokemon)
+                results.append(pkm)
 
     return results
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("query", type=str,
-                        help="PokeQuery string")
-    parser.add_argument("game_master", type=str,
-                        help="path to official game master json")
+    parser.add_argument("args", type=str, nargs='+',
+                        help="species_query [, fmove_query] [, cmove_query] [, cmove2_query] GAME_MASTER_PATH")
     parser.add_argument("-c", "--count", action="store_true",
                         help="only show the number of matches")
     parser.add_argument("-v", "--verbose", action="store_true",
-                        help="print out each matched item in details")
+                        help="print out each match in details")
     args = parser.parse_args()
 
-    gm = GameMaster(args.game_master)
-    pred = PokeQuery(args.query)
+    if len(args.args) < 2:
+        print("expect at least 2 positional arguments: species_query, GAME_MASTER_PATH")
+        return -1
 
-    total = 0
-    for pkm in gm.Pokemon:
-        if pred(pkm):
-            if args.count:
-                total += 1
-            elif args.verbose:
-                print(pkm)
-            else:
-                print(pkm["name"])
+    *query, gm_path = args.args
+
+    gm = GameMaster(gm_path)
+
+    results = []
+
+    if len(query) == 1:
+        results = list(filter(PokeQuery(query), gm.Pokemon))
+    elif len(query) >= 3:
+        pkm_qry = {
+            "name": query[0],
+            "fmove": query[1],
+            "cmove": query[2],
+            "cmove2": query[3] if query[3:] else ""
+        }
+        results = batch_pokemon(pkm_qry, gm)
+    else:
+        print("cannot query fast move but not primary charged move")
+        return -2
+
+    total = len(results)
     if args.count:
         print(total)
+        return 0
+
+    for pkm in results:
+        if args.verbose:
+            print(pkm)
+        else:
+            print(pkm["name"], pkm.get("fmove", ""), pkm.get(
+                "cmove", ""), pkm.get("cmove2", ""))
+
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    exit(main())

@@ -39,14 +39,6 @@ class GameMaster:
         '''
         @param file the filepath to the game master json file.
         '''
-        self.clear()
-        if file is not None:
-            self.parse(file)
-
-    def clear(self):
-        '''
-        Clear all data.
-        '''
         self.Pokemon = []
         self.PvEMoves = []
         self.PvPMoves = []
@@ -69,6 +61,15 @@ class GameMaster:
             {"name": "6", "cpm": 0.7900000214576721,
                 "maxHP": 18750, "timelimit": 3000000}
         ]
+
+        if file is not None:
+            self.parse(file)
+
+    def clear(self):
+        '''
+        Clear all data.
+        '''
+        self.__init__()
         return self
 
     def parse(self, file):

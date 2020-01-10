@@ -1,4 +1,8 @@
 
+'''
+This module provides PokeQuery, a scheme to search Pokemon/Move.
+'''
+
 import argparse
 import copy
 import csv

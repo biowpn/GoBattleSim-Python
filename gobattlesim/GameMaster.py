@@ -1,6 +1,6 @@
 
 '''
-This module provides game master file parsing,
+This module provides game master file parsing (into GoBattleSim compatible format).
 '''
 
 import argparse

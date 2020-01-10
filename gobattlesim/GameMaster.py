@@ -277,7 +277,7 @@ class GameMaster:
                 return friend_setting["multiplier"]
             elif friendship == alter_names[i]:
                 return friend_setting["multiplier"]
-        return None
+        return 1
 
     def search_raid_tier(self, tier):
         '''

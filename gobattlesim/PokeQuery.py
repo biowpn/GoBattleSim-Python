@@ -273,52 +273,56 @@ def batch_pokemon(pkm_qry, game_master: GameMaster):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("args", type=str, nargs='+',
-                        help="species_query [, fmove_query] [, cmove_query] [, cmove2_query] GAME_MASTER_PATH")
-    parser.add_argument("-c", "--count", action="store_true",
+    parser.add_argument("query", type=str, nargs='+',
+                        help="species_query [, fmove_query] [, cmove_query] [, cmove2_query]")
+    parser.add_argument("-c", "--config", required=True,
+                        help="path to GBS game master json")
+    parser.add_argument("-n", "--number", action="store_true",
                         help="only show the number of matches")
     parser.add_argument("-v", "--verbose", action="store_true",
                         help="print out each match in details")
-    parser.add_argument("-f", "--format", choices=["tsv", "csv", "json"], default="tsv",
+    parser.add_argument("-f", "--format", choices=["tsv", "csv", "json"], default="csv",
                         help="format of output")
-    parser.add_argument("-o", "--out", type=argparse.FileType('w'), default=sys.stdout,
+    parser.add_argument("-o", "--out",
                         help="file to store output")
     args = parser.parse_args()
 
-    if len(args.args) < 2:
-        print("expect at least 2 positional arguments: species_query, GAME_MASTER_PATH")
-        return -1
+    if args.out is None:
+        args.out = sys.stdout
+    else:
+        args.out = open(args.out, mode="w", newline="")
 
-    *query, gm_path = args.args
-
-    gm = GameMaster(gm_path)
+    gm = GameMaster()
+    with open(args.config, encoding="utf8") as fd:
+        gm.from_json(json.load(fd))
+    gm.apply()
 
     fields = []
     matches = []
 
-    if len(query) == 1:
+    if len(args.query) == 1:
         fields = ["name"]
-        matches = list(filter(PokeQuery(query), gm.Pokemon))
-    elif len(query) >= 3:
+        matches = list(filter(PokeQuery(args.query[0]), gm.Pokemon))
+    elif len(args.query) >= 3:
         fields = ["name", "fmove", "cmove"]
         pkm_qry = {
-            "name": query[0],
-            "fmove": query[1],
-            "cmove": query[2]
+            "name": args.query[0],
+            "fmove": args.query[1],
+            "cmove": args.query[2]
         }
-        if len(query) >= 4:
+        if len(args.query) >= 4:
             fields.append("cmove2")
-            pkm_qry["cmove2"] = query[3]
+            pkm_qry["cmove2"] = args.query[3]
         matches = batch_pokemon(pkm_qry, gm)
     else:
         print("cannot query fast move but not primary charged move")
         return -2
 
-    count = len(matches)
-    if args.count:
-        print(count)
+    number = len(matches)
+    if args.number:
+        print(number)
         return 0
-    if count == 0:
+    if number == 0:
         return 0
 
     if args.verbose:

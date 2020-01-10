@@ -12,7 +12,11 @@ import sys
 
 from .GameMaster import GameMaster
 from .Pokemon import Pokemon
-from .Engine import GBS
+
+try:
+    from .Engine import GBS
+except Exception as e:
+    GBS = e
 
 
 def set_stats(pkm, league, game_master=None):
@@ -43,10 +47,10 @@ def set_stats(pkm, league, game_master=None):
             pkm[stat] = species[stat]
 
     if league == "master":
-        cpm = game_master.CPMultipliers[-1]
-        atkiv = 15
-        defiv = 15
-        stmiv = 15
+        pkm["cpm"] = game_master.CPMultipliers[-1]
+        pkm["atkiv"] = 15
+        pkm["defiv"] = 15
+        pkm["stmiv"] = 15
     else:
         if league == "ultra":
             target_cp = 2500
@@ -57,12 +61,12 @@ def set_stats(pkm, league, game_master=None):
         else:
             raise Exception("bad league {}".format(league))
         target_cp = 2500 if league == "ultra" else 1500
-        cpm, atkiv, defiv, stmiv = Pokemon.infer_cpm_and_IVs(
+        pkm["cpm"], pkm["atkiv"], pkm["defiv"], pkm["stmiv"] = Pokemon.infer_cpm_and_IVs(
             pkm["baseAtk"], pkm["baseDef"], pkm["baseStm"], target_cp)
 
-    pkm["attack"] = (pkm["baseAtk"] + atkiv) * cpm
-    pkm["defense"] = (pkm["baseDef"] + defiv) * cpm
-    pkm["maxHP"] = math.floor((pkm["baseStm"] + stmiv) * cpm)
+    pkm["attack"] = (pkm["baseAtk"] + pkm["atkiv"]) * pkm["cpm"]
+    pkm["defense"] = (pkm["baseDef"] + pkm["defiv"]) * pkm["cpm"]
+    pkm["maxHP"] = math.floor((pkm["baseStm"] + pkm["stmiv"]) * pkm["cpm"])
 
     return pkm
 
@@ -121,7 +125,22 @@ def load_pokemon(file, fmt="tsv"):
     return pkm_list
 
 
-def save_pokemon(pkm_list, file, fmt="tsv"):
+def minimize_pokemon(pkm_list):
+    CoreFields = ["name", "pokeType1", "pokeType2",
+                  "attack", "defense", "maxHP", "fmove", "cmoves"]
+    pkm_list_minimized = []
+    for pkm in pkm_list:
+        pkm_min = {k: pkm[k] for k in CoreFields}
+        if "fmove" in pkm_min and "movetype" in pkm_min["fmove"]:
+            pkm_min["fmove"].pop("movetype")
+        for cmove in pkm_min.get("cmoves", []):
+            if "movetype" in cmove:
+                cmove.pop("movetype")
+        pkm_list_minimized.append(pkm_min)
+    return pkm_list_minimized
+
+
+def save_pokemon(pkm_list, file, fmt="csv"):
     '''
     save pokemon list to file @param file.
 
@@ -131,18 +150,31 @@ def save_pokemon(pkm_list, file, fmt="tsv"):
     '''
     if not pkm_list:
         return
-    if fmt == "tsv":
-        fields = pkm_list[0].keys()
-        writer = csv.DictWriter(file, fields, dialect="excel-tab")
-        writer.writer()
-        writer.writerows(pkm_list)
-    elif fmt == "csv":
-        fields = pkm_list[0].keys()
-        writer = csv.DictWriter(file, fields)
-        writer.writer()
-        writer.writerows(pkm_list)
+    if fmt == "tsv" or fmt == "csv":
+        fields = list(pkm_list[0].keys())
+        if "cmoves" in fields:
+            fields.remove("cmoves")
+            if "cmove" not in fields:
+                fields.append("cmove")
+            if "cmove2" not in fields and any([pkm.get("cmoves", [])[1:] for pkm in pkm_list]):
+                fields.append("cmove2")
+        if fmt == "tsv":
+            writer = csv.DictWriter(file, fields, dialect="excel-tab")
+        else:
+            writer = csv.DictWriter(file, fields)
+        writer.writeheader()
+        for pkm in pkm_list:
+            pkm_copy = copy.copy(pkm)
+            if "cmoves" in pkm_copy:
+                cmoves = pkm_copy.pop("cmoves")
+                pkm_copy["cmove"] = cmoves[0].get("name")
+                if cmoves[1:]:
+                    pkm_copy["cmove2"] = cmoves[1].get("name")
+            if type(pkm_copy.get("fmove")) is dict:
+                pkm_copy["fmove"] = pkm_copy["fmove"].get("name")
+            writer.writerow(pkm_copy)
     elif fmt == "json":
-        json.dump(pkm_list, file)
+        json.dump(pkm_list, file, indent=4)
     else:
         raise Exception("bad format {}".format(fmt))
 
@@ -156,8 +188,6 @@ def do_run_matrix(row_pkm, col_pkm=[], shield=0):
     @param shield shield setting
     @return matrix as 2D list
     '''
-    if shield > 0:
-        print("warning: will use average shield")
 
     reqInput = {
         "battleMode": "battlematrix",
@@ -208,7 +238,7 @@ def run_matrix(row_pkm, col_pkm=None, shield=-1, league="master", game_master=No
     return do_run_matrix(row_pkm, col_pkm, shield)
 
 
-def save_matrix(matrix, file, fmt="tsv"):
+def save_matrix(matrix, file, fmt="csv"):
     '''
     save battle matrix @param matrix to file @file with format @param fmt
     '''
@@ -235,19 +265,33 @@ def main():
                         help="shield strategy setting. -1 for average")
     parser.add_argument("-l", "--league", choices=["great", "ultra", "master"],
                         help="PvP league to decide Pokemon stats. If not set, will use raw Pokemon input")
-    parser.add_argument("-c", "--config", type=argparse.FileType('r'), required=True,
-                        help="path to game master json")
+    parser.add_argument("-c", "--config", required=True,
+                        help="path to GBS game master json")
     parser.add_argument("-p", "--pokemon", action="store_true",
                         help="only show the parsed row Pokemon list")
-    parser.add_argument("-f", "--format", choices=["tsv", "csv", "json"], default="tsv",
+    parser.add_argument("-z", "--minimize", action="store_true",
+                        help="for showing the Pokemon list, keeping only the necessary fields")
+    parser.add_argument("-i", "--input", action="store_true",
+                        help="only show the battle matrix input")
+    parser.add_argument("-f", "--format", choices=["tsv", "csv", "json"], default="csv",
                         help="matrix output format")
-    parser.add_argument("-o", "--out", type=argparse.FileType('w'), default=sys.stdout,
+    parser.add_argument("-o", "--out",
                         help="file to store output matrix")
     args = parser.parse_args()
 
-    GameMaster(args.config).apply()
+    if args.out is None:
+        args.out = sys.stdout
+    else:
+        args.out = open(args.out, "w", newline="")
+
+    gm = GameMaster()
+    with open(args.config, encoding="utf8") as fd:
+        gm.from_json(json.load(fd))
+    gm.apply()
 
     row_pkm = load_and_set_pokemon(args.row_pokemon, args.league)
+    if args.minimize:
+        row_pkm = minimize_pokemon(row_pkm)
 
     if args.pokemon:
         save_pokemon(row_pkm, args.out, args.format)
@@ -255,12 +299,31 @@ def main():
 
     if args.col_pokemon is not None:
         col_pkm = load_and_set_pokemon(args.col_pokemon, args.league)
+        if args.minimize:
+            col_pkm = minimize_pokemon(col_pkm)
     else:
         col_pkm = []
 
-    matrix = do_run_matrix(row_pkm, col_pkm, args.shield)
+    reqInput = {
+        "battleMode": "battlematrix",
+        "rowPokemon": row_pkm,
+        "colPokemon": col_pkm,
+        "avergeByShield": args.shield != 0
+    }
 
-    save_matrix(matrix, args.out, args.fmt)
+    if args.input:
+        json.dump(reqInput, args.out, indent=4)
+        return 0
+
+    if type(GBS) is Exception:
+        raise GBS
+
+    GBS.config(gm.to_json())
+    GBS.prepare(reqInput)
+    GBS.run()
+    matrix = GBS.collect()
+
+    save_matrix(matrix, args.out, args.format)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,19 @@
+name,fmove,cmove,pokeType1,pokeType2,baseAtk,baseDef,baseStm,cpm,atkiv,defiv,stmiv,attack,defense,maxHP
+bulbasaur,tackle,power whip,grass,poison,118,111,128,0.8153,15,15,15,108.4349,102.7278,116
+bulbasaur,tackle,seed bomb,grass,poison,118,111,128,0.8153,15,15,15,108.4349,102.7278,116
+bulbasaur,tackle,sludge bomb,grass,poison,118,111,128,0.8153,15,15,15,108.4349,102.7278,116
+bulbasaur,vine whip,power whip,grass,poison,118,111,128,0.8153,15,15,15,108.4349,102.7278,116
+bulbasaur,vine whip,seed bomb,grass,poison,118,111,128,0.8153,15,15,15,108.4349,102.7278,116
+bulbasaur,vine whip,sludge bomb,grass,poison,118,111,128,0.8153,15,15,15,108.4349,102.7278,116
+charmander,ember,flame burst,fire,none,116,93,118,0.8153,15,15,15,106.8043,88.0524,108
+charmander,ember,flame charge,fire,none,116,93,118,0.8153,15,15,15,106.8043,88.0524,108
+charmander,ember,flamethrower,fire,none,116,93,118,0.8153,15,15,15,106.8043,88.0524,108
+charmander,scratch,flame burst,fire,none,116,93,118,0.8153,15,15,15,106.8043,88.0524,108
+charmander,scratch,flame charge,fire,none,116,93,118,0.8153,15,15,15,106.8043,88.0524,108
+charmander,scratch,flamethrower,fire,none,116,93,118,0.8153,15,15,15,106.8043,88.0524,108
+squirtle,bubble,aqua jet,water,none,94,121,127,0.8153,15,15,15,88.8677,110.88080000000001,115
+squirtle,bubble,aqua tail,water,none,94,121,127,0.8153,15,15,15,88.8677,110.88080000000001,115
+squirtle,bubble,water pulse,water,none,94,121,127,0.8153,15,15,15,88.8677,110.88080000000001,115
+squirtle,tackle,aqua jet,water,none,94,121,127,0.8153,15,15,15,88.8677,110.88080000000001,115
+squirtle,tackle,aqua tail,water,none,94,121,127,0.8153,15,15,15,88.8677,110.88080000000001,115
+squirtle,tackle,water pulse,water,none,94,121,127,0.8153,15,15,15,88.8677,110.88080000000001,115

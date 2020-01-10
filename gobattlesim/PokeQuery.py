@@ -1,7 +1,10 @@
 
 import argparse
 import copy
+import csv
 import itertools
+import json
+import sys
 
 from .GameMaster import PoketypeList, GameMaster
 
@@ -169,6 +172,22 @@ def PokeQuery(query_str, pkm=None, movetype="fast"):
     return vstack.pop() if vstack else default_pred
 
 
+def get_unique_pokemon(pkm_list):
+    '''
+    remove duplicates where {cmove, cmove2} are the same set.
+    '''
+    unique_pkm_list = []
+    for pkm in pkm_list:
+        unique = True
+        for pkm2 in unique_pkm_list:
+            if set([pkm['cmove'], pkm.get('cmove2')]) == set([pkm2['cmove'], pkm2.get('cmove2')]):
+                unique = any([v != pkm2.get(k) for k, v in pkm.items()
+                              if k != 'cmove' and k != 'cmove2'])
+        if unique:
+            unique_pkm_list.append(pkm)
+    return unique_pkm_list
+
+
 def batch_pokemon(pkm_qry, game_master: GameMaster):
     '''
     Return a list of Pokemon-Move combinations that match the query input @param pkm_qry in GameMaster @param game_master.
@@ -182,7 +201,7 @@ def batch_pokemon(pkm_qry, game_master: GameMaster):
 
     All fields must be str, and can be PokeQuery.
     '''
-    results = []
+    matches = []
 
     species_qry = pkm_qry["name"]
     fmove_qry = pkm_qry["fmove"]
@@ -194,7 +213,6 @@ def batch_pokemon(pkm_qry, game_master: GameMaster):
     cmove_matches = []
     cmove2_matches = []
 
-    # Try for direct match first. Only if no direct match will the program try for query match.
     species_direct_match = game_master.search_pokemon(species_qry)
     if species_direct_match:
         species_matches.append(species_direct_match)
@@ -203,6 +221,8 @@ def batch_pokemon(pkm_qry, game_master: GameMaster):
             PokeQuery(species_qry), True)
 
     for species in species_matches:
+        cur_matches = []
+
         fmove_direct_match = game_master.search_pve_fmove(fmove_qry)
         if fmove_direct_match:
             fmove_matches.append(fmove_direct_match)
@@ -235,11 +255,16 @@ def batch_pokemon(pkm_qry, game_master: GameMaster):
                     if cmove2["name"] != cmove["name"]:
                         pkm = copy.copy(pkm)
                         pkm["cmove2"] = cmove2["name"]
-                        results.append(pkm)
+                        cur_matches.append(pkm)
             else:
-                results.append(pkm)
+                cur_matches.append(pkm)
 
-    return results
+        if cmove2_matches:
+            cur_matches = get_unique_pokemon(cur_matches)
+
+        matches.extend(cur_matches)
+
+    return matches
 
 
 def main():
@@ -250,6 +275,10 @@ def main():
                         help="only show the number of matches")
     parser.add_argument("-v", "--verbose", action="store_true",
                         help="print out each match in details")
+    parser.add_argument("-f", "--format", choices=["tsv", "csv", "json"], default="tsv",
+                        help="format of output")
+    parser.add_argument("-o", "--out", type=argparse.FileType('w'), default=sys.stdout,
+                        help="file to store output")
     args = parser.parse_args()
 
     if len(args.args) < 2:
@@ -260,33 +289,51 @@ def main():
 
     gm = GameMaster(gm_path)
 
-    results = []
+    fields = []
+    matches = []
 
     if len(query) == 1:
-        results = list(filter(PokeQuery(query), gm.Pokemon))
+        fields = ["name"]
+        matches = list(filter(PokeQuery(query), gm.Pokemon))
     elif len(query) >= 3:
+        fields = ["name", "fmove", "cmove"]
         pkm_qry = {
             "name": query[0],
             "fmove": query[1],
-            "cmove": query[2],
-            "cmove2": query[3] if query[3:] else ""
+            "cmove": query[2]
         }
-        results = batch_pokemon(pkm_qry, gm)
+        if len(query) >= 4:
+            fields.append("cmove2")
+            pkm_qry["cmove2"] = query[3]
+        matches = batch_pokemon(pkm_qry, gm)
     else:
         print("cannot query fast move but not primary charged move")
         return -2
 
-    total = len(results)
+    count = len(matches)
     if args.count:
-        print(total)
+        print(count)
+        return 0
+    if count == 0:
         return 0
 
-    for pkm in results:
-        if args.verbose:
-            print(pkm)
-        else:
-            print(pkm["name"], pkm.get("fmove", ""), pkm.get(
-                "cmove", ""), pkm.get("cmove2", ""))
+    if args.verbose:
+        for attr in matches[0].keys():
+            if attr not in fields:
+                fields.append(attr)
+    else:
+        matches = [{k: pkm[k] for k in fields} for pkm in matches]
+
+    if args.format == "tsv":
+        writer = csv.DictWriter(args.out, fields, dialect="excel-tab")
+        writer.writeheader()
+        writer.writerows(matches)
+    elif args.format == "csv":
+        writer = csv.DictWriter(args.out, fields)
+        writer.writeheader()
+        writer.writerows(matches)
+    elif args.format == "json":
+        json.dump(matches, args.out, indent=4)
 
     return 0
 

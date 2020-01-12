@@ -296,15 +296,15 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("infile", type=str,
                         help="path to official game master json")
-    parser.add_argument("-m", "--mini", action="store_true",
+    parser.add_argument("-z", "--minimize", action="store_true",
                         help="leaving out Pokemon and Move data")
-    parser.add_argument("-o", "--out", type=argparse.FileType('w'), default=sys.stdout,
-                        help="parsing output")
+    parser.add_argument("-o", "--out", type=argparse.FileType('w'), default=open("./GBS.json", "w"),
+                        help="output filepath")
     args = parser.parse_args()
 
     gm = GameMaster(args.infile)
     j = gm.to_json()
-    if args.mini:
+    if args.minimize:
         j.pop("Pokemon")
         j.pop("PvPMoves")
         j.pop("PvEMoves")

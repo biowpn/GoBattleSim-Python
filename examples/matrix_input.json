@@ -9,11 +9,59 @@
             "defense": 102.7278,
             "maxHP": 116,
             "fmove": {
-                "name": "tackle",
-                "pokeType": "normal",
-                "power": 3,
-                "duration": 1,
-                "energy": 2
+                "name": "vine whip",
+                "pokeType": "grass",
+                "power": 5,
+                "duration": 2,
+                "energy": 8
+            },
+            "cmoves": [
+                {
+                    "name": "seed bomb",
+                    "pokeType": "grass",
+                    "power": 55,
+                    "duration": 1,
+                    "energy": -40
+                }
+            ]
+        },
+        {
+            "name": "bulbasaur",
+            "pokeType1": "grass",
+            "pokeType2": "poison",
+            "attack": 108.4349,
+            "defense": 102.7278,
+            "maxHP": 116,
+            "fmove": {
+                "name": "vine whip",
+                "pokeType": "grass",
+                "power": 5,
+                "duration": 2,
+                "energy": 8
+            },
+            "cmoves": [
+                {
+                    "name": "sludge bomb",
+                    "pokeType": "poison",
+                    "power": 80,
+                    "duration": 1,
+                    "energy": -50
+                }
+            ]
+        },
+        {
+            "name": "bulbasaur",
+            "pokeType1": "grass",
+            "pokeType2": "poison",
+            "attack": 108.4349,
+            "defense": 102.7278,
+            "maxHP": 116,
+            "fmove": {
+                "name": "vine whip",
+                "pokeType": "grass",
+                "power": 5,
+                "duration": 2,
+                "energy": 8
             },
             "cmoves": [
                 {
@@ -81,11 +129,11 @@
             "defense": 102.7278,
             "maxHP": 116,
             "fmove": {
-                "name": "vine whip",
-                "pokeType": "grass",
-                "power": 5,
-                "duration": 2,
-                "energy": 8
+                "name": "tackle",
+                "pokeType": "normal",
+                "power": 3,
+                "duration": 1,
+                "energy": 2
             },
             "cmoves": [
                 {
@@ -98,54 +146,6 @@
             ]
         },
         {
-            "name": "bulbasaur",
-            "pokeType1": "grass",
-            "pokeType2": "poison",
-            "attack": 108.4349,
-            "defense": 102.7278,
-            "maxHP": 116,
-            "fmove": {
-                "name": "vine whip",
-                "pokeType": "grass",
-                "power": 5,
-                "duration": 2,
-                "energy": 8
-            },
-            "cmoves": [
-                {
-                    "name": "seed bomb",
-                    "pokeType": "grass",
-                    "power": 55,
-                    "duration": 1,
-                    "energy": -40
-                }
-            ]
-        },
-        {
-            "name": "bulbasaur",
-            "pokeType1": "grass",
-            "pokeType2": "poison",
-            "attack": 108.4349,
-            "defense": 102.7278,
-            "maxHP": 116,
-            "fmove": {
-                "name": "vine whip",
-                "pokeType": "grass",
-                "power": 5,
-                "duration": 2,
-                "energy": 8
-            },
-            "cmoves": [
-                {
-                    "name": "sludge bomb",
-                    "pokeType": "poison",
-                    "power": 80,
-                    "duration": 1,
-                    "energy": -50
-                }
-            ]
-        },
-        {
             "name": "charmander",
             "pokeType1": "fire",
             "pokeType2": "none",
@@ -161,9 +161,9 @@
             },
             "cmoves": [
                 {
-                    "name": "flame burst",
+                    "name": "flamethrower",
                     "pokeType": "fire",
-                    "power": 70,
+                    "power": 90,
                     "duration": 1,
                     "energy": -55
                 }
@@ -209,9 +209,9 @@
             },
             "cmoves": [
                 {
-                    "name": "flamethrower",
+                    "name": "flame burst",
                     "pokeType": "fire",
-                    "power": 90,
+                    "power": 70,
                     "duration": 1,
                     "energy": -55
                 }
@@ -233,9 +233,9 @@
             },
             "cmoves": [
                 {
-                    "name": "flame burst",
+                    "name": "flamethrower",
                     "pokeType": "fire",
-                    "power": 70,
+                    "power": 90,
                     "duration": 1,
                     "energy": -55
                 }
@@ -281,9 +281,9 @@
             },
             "cmoves": [
                 {
-                    "name": "flamethrower",
+                    "name": "flame burst",
                     "pokeType": "fire",
-                    "power": 90,
+                    "power": 70,
                     "duration": 1,
                     "energy": -55
                 }
@@ -297,11 +297,11 @@
             "defense": 110.88080000000001,
             "maxHP": 115,
             "fmove": {
-                "name": "bubble",
-                "pokeType": "water",
-                "power": 8,
-                "duration": 3,
-                "energy": 11
+                "name": "tackle",
+                "pokeType": "normal",
+                "power": 3,
+                "duration": 1,
+                "energy": 2
             },
             "cmoves": [
                 {
@@ -321,11 +321,11 @@
             "defense": 110.88080000000001,
             "maxHP": 115,
             "fmove": {
-                "name": "bubble",
-                "pokeType": "water",
-                "power": 8,
-                "duration": 3,
-                "energy": 11
+                "name": "tackle",
+                "pokeType": "normal",
+                "power": 3,
+                "duration": 1,
+                "energy": 2
             },
             "cmoves": [
                 {
@@ -345,11 +345,11 @@
             "defense": 110.88080000000001,
             "maxHP": 115,
             "fmove": {
-                "name": "bubble",
-                "pokeType": "water",
-                "power": 8,
-                "duration": 3,
-                "energy": 11
+                "name": "tackle",
+                "pokeType": "normal",
+                "power": 3,
+                "duration": 1,
+                "energy": 2
             },
             "cmoves": [
                 {
@@ -369,11 +369,11 @@
             "defense": 110.88080000000001,
             "maxHP": 115,
             "fmove": {
-                "name": "tackle",
-                "pokeType": "normal",
-                "power": 3,
-                "duration": 1,
-                "energy": 2
+                "name": "bubble",
+                "pokeType": "water",
+                "power": 8,
+                "duration": 3,
+                "energy": 11
             },
             "cmoves": [
                 {
@@ -393,11 +393,11 @@
             "defense": 110.88080000000001,
             "maxHP": 115,
             "fmove": {
-                "name": "tackle",
-                "pokeType": "normal",
-                "power": 3,
-                "duration": 1,
-                "energy": 2
+                "name": "bubble",
+                "pokeType": "water",
+                "power": 8,
+                "duration": 3,
+                "energy": 11
             },
             "cmoves": [
                 {
@@ -417,11 +417,11 @@
             "defense": 110.88080000000001,
             "maxHP": 115,
             "fmove": {
-                "name": "tackle",
-                "pokeType": "normal",
-                "power": 3,
-                "duration": 1,
-                "energy": 2
+                "name": "bubble",
+                "pokeType": "water",
+                "power": 8,
+                "duration": 3,
+                "energy": 11
             },
             "cmoves": [
                 {

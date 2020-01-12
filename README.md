@@ -20,15 +20,17 @@ I'll introduce each module by a step-by-step example of generating a **kanto sta
 
 ## Module: Game Master
 
-The official Game Master [GAME_MASTER.json](game_master/GAME_MASTER.json) can be found in online resources such as [this repository](https://github.com/pokemongo-dev-contrib/pokemongo-game-master).
+The official Game Master [GAME_MASTER.json](game_master/GAME_MASTER.json) can be found in online resources such as [this repository](https://github.com/pokemongo-dev-contrib/pokemongo-game-master). One has been prepared in [game_master/GAME_MASTER.json](game_master/).
 
 Let's make the big and heavy Game Master more organized:
 
 ```
-python -m gobattlesim.GameMaster game_master/GAME_MASTER.json -o examples/gbs_game_master.json
+python -m gobattlesim.GameMaster game_master/GAME_MASTER.json
 ```
 
-The result [gbs_game_master.json](examples/gbs_game_master.json) can be used to configure GoBattleSim Engine.
+- You can add "`-o`" to change the output filepath. The default is "./GBS.json". 
+
+The result can be used to configure GoBattleSim Engine.
 
 ## Module: PokeQuery
 
@@ -37,16 +39,16 @@ We usually simulate many combinations of Pokemon and Move at a time (batch simul
 In our example, we can do:
 
 ```
-python -m gobattlesim.PokeQuery "(charmander,bulbasaur,squirtle) & !(purified,shadow,fall,norm)" "*" "*" -c examples/gbs_game_master.json -o examples/kanto_starters.csv
+python -m gobattlesim.PokeQuery "(charmander,bulbasaur,squirtle) & !(purified,shadow,fall,norm)" "*" "*" -o examples/kanto_starters.csv 
 ```
 
 - The nasty term "`& !(purified,shadow,fall,norm)`" is used to filter out those special forms, leaving only the OG starters.
 
 - "`*`" matches all moves in the Pokemon's movepool.
 
-- "`-c examples/gbs_game_master.json`" uses our Game Master from the previous step.
+- Output format is determined by the output file extension name; in this case, `csv`. Other options include `tsv` and `json`.
 
-- "`-o examples/kanto_starters.csv`" saves the generated Pokemon list to the file we desire. Other format options are available; run with "`-h`" for details.
+- Additionally, "`-c`" specifies the path to GBS configuration. Default to "./GBS.json".
 
 ## Module: Battle Matrix
 
@@ -55,7 +57,7 @@ Great, now we have species and moves information ready, but we are still missing
 Let's do:
 
 ```
-python -m gobattlesim.Matrix examples/kanto_starters.csv -c examples/gbs_game_master.json --league great --pokemon -o examples/kanto_starters_with_stats.csv
+python -m gobattlesim.Matrix examples/kanto_starters.csv --league great --pokemon -o examples/kanto_starters_with_stats.csv
 ```
 
 - "`--league great`" tells the tool to derive the stats based on target CP 1500.
@@ -65,10 +67,11 @@ python -m gobattlesim.Matrix examples/kanto_starters.csv -c examples/gbs_game_ma
 To run the matrix simulations, just remove the "`--pokemon`" flag (and change the output path):
 
 ```
-python -m gobattlesim.Matrix examples/kanto_starters.csv -c examples/gbs_game_master.json --league great -o examples/matrix.csv
+python -m gobattlesim.Matrix examples/kanto_starters.csv --league great -o examples/matrix.csv
 ```
+- Same as above, the matrix output format is determined by the extension name. Other options include `tsv` and `json`.
 
-Note that we can also use [kanto_starters_with_stats.csv](examples/kanto_starters_with_stats.csv) from earlier step. This way the tool can grab the derived stats instead of doing the derivation again.
+- We can also use [kanto_starters_with_stats.csv](examples/kanto_starters_with_stats.csv) from earlier step. This way the tool can grab the derived stats instead of doing the derivation again.
 
 ## Module: Engine
 
@@ -98,15 +101,15 @@ Of course, it's 100% fine to use the other tools without the `Engine` module.
 Using above `Matrix` module, we can alternatively save the actual simulation input and check it:
 
 ```
-python -m gobattlesim.Matrix examples/kanto_starters.csv -c examples/gbs_game_master.json --league great -iz -o examples/matrix_input.json
+python -m gobattlesim.Matrix examples/kanto_starters.csv --league great --input -z -o examples/matrix_input.json
 ```
 
-- The "`-i`" exports the simulation input instead of running the matrix.
+- The "`--input`" exports the simulation input instead of running the matrix.
 
 - The "`-z`" keeps only the necessary fields for Pokemon.
 
 We can then directly use `Engine` to process the input:
 
 ```
-python -m gobattlesim examples/matrix_input.json -c examples/gbs_game_master.json
+python -m gobattlesim examples/matrix_input.json
 ```

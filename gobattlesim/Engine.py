@@ -73,7 +73,7 @@ def main():
     parser.add_argument("-v", "--version", action="store_true",
                         help="show GBS engine version and exit")
     parser.add_argument("-c", "--config", nargs="?", default=False,
-                        help="print game master, or (with argument) set game master by path")
+                        help="print configuration, or (with argument) set configuration by path")
     parser.add_argument("-o", "--out", type=argparse.FileType('w'), default=sys.stdout,
                         help="file to save simulation output")
     args = parser.parse_args()
@@ -90,8 +90,9 @@ def main():
         print_version()
         return 0
 
-    if args.config:
-        with open(args.config) as fd:
+    config_path = args.config or "./GBS.json"
+    if os.path.isfile(config_path):
+        with open(config_path) as fd:
             j = json.load(fd)
             GBS.config(j)
 

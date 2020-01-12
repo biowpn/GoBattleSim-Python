@@ -275,22 +275,27 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("query", type=str, nargs='+',
                         help="species_query [, fmove_query] [, cmove_query] [, cmove2_query]")
-    parser.add_argument("-c", "--config", required=True,
-                        help="path to GBS game master json")
+    parser.add_argument("-c", "--config", default="./GBS.json",
+                        help="path to GBS configuration json")
     parser.add_argument("-n", "--number", action="store_true",
                         help="only show the number of matches")
     parser.add_argument("-v", "--verbose", action="store_true",
                         help="print out each match in details")
     parser.add_argument("-f", "--format", choices=["tsv", "csv", "json"], default="csv",
-                        help="format of output")
+                        help="format of output. If omitted, will derive from output filepath")
     parser.add_argument("-o", "--out",
                         help="file to store output")
     args = parser.parse_args()
 
     if args.out is None:
         args.out = sys.stdout
+        args.format = args.format or "csv"
     else:
         args.out = open(args.out, mode="w", newline="")
+
+    fmt = args.format
+    if fmt is None:
+        fmt = args.out.name.split('.')[-1]
 
     gm = GameMaster()
     with open(args.config, encoding="utf8") as fd:
@@ -332,16 +337,18 @@ def main():
     else:
         matches = [{k: pkm[k] for k in fields} for pkm in matches]
 
-    if args.format == "tsv":
+    if fmt == "tsv":
         writer = csv.DictWriter(args.out, fields, dialect="excel-tab")
         writer.writeheader()
         writer.writerows(matches)
-    elif args.format == "csv":
+    elif fmt == "csv":
         writer = csv.DictWriter(args.out, fields)
         writer.writeheader()
         writer.writerows(matches)
-    elif args.format == "json":
+    elif fmt == "json":
         json.dump(matches, args.out, indent=4)
+    else:
+        raise Exception("bad format {}".format(fmt))
 
     return 0
 

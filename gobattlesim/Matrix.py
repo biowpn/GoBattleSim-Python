@@ -260,29 +260,34 @@ def main():
     parser.add_argument("row_pokemon",
                         help="path to a file containing list of Pokemon")
     parser.add_argument("col_pokemon", nargs='?',
-                        help="path to a file containing list of Pokemon. If unset, will be set to row Pokemon")
+                        help="path to a file containing list of Pokemon. If omitted, will be the same as row Pokemon")
     parser.add_argument("-s", "--shield", type=int, default=0,
                         help="shield strategy setting. -1 for average")
-    parser.add_argument("-l", "--league", choices=["great", "ultra", "master"],
+    parser.add_argument("--league", choices=["great", "ultra", "master"], default="master",
                         help="PvP league to decide Pokemon stats. If not set, will use raw Pokemon input")
-    parser.add_argument("-c", "--config", required=True,
+    parser.add_argument("-c", "--config", default="./GBS.json",
                         help="path to GBS game master json")
-    parser.add_argument("-p", "--pokemon", action="store_true",
-                        help="only show the parsed row Pokemon list")
+    parser.add_argument("--pokemon", action="store_true",
+                        help="only output the parsed row Pokemon list")
     parser.add_argument("-z", "--minimize", action="store_true",
-                        help="for showing the Pokemon list, keeping only the necessary fields")
-    parser.add_argument("-i", "--input", action="store_true",
-                        help="only show the battle matrix input")
-    parser.add_argument("-f", "--format", choices=["tsv", "csv", "json"], default="csv",
-                        help="matrix output format")
+                        help="for Pokemon list, keeping only the necessary fields")
+    parser.add_argument("--input", action="store_true",
+                        help="only output the battle matrix simulation input")
+    parser.add_argument("-f", "--format", choices=["tsv", "csv", "json"], default=None,
+                        help="matrix output format. If omitted, will derive from output filepath")
     parser.add_argument("-o", "--out",
                         help="file to store output matrix")
     args = parser.parse_args()
 
     if args.out is None:
         args.out = sys.stdout
+        args.format = args.format or "csv"
     else:
         args.out = open(args.out, "w", newline="")
+    
+    fmt = args.format
+    if fmt is None:
+        fmt = args.out.name.split(".")[-1]
 
     gm = GameMaster()
     with open(args.config, encoding="utf8") as fd:
@@ -294,7 +299,7 @@ def main():
         row_pkm = minimize_pokemon(row_pkm)
 
     if args.pokemon:
-        save_pokemon(row_pkm, args.out, args.format)
+        save_pokemon(row_pkm, args.out, fmt)
         return 0
 
     if args.col_pokemon is not None:
@@ -323,7 +328,7 @@ def main():
     GBS.run()
     matrix = GBS.collect()
 
-    save_matrix(matrix, args.out, args.format)
+    save_matrix(matrix, args.out, fmt)
 
 
 if __name__ == "__main__":

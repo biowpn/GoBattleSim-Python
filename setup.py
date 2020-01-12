@@ -6,17 +6,14 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="gobattlesim",
-    version="0.8.0",
-    author="Hank Meng",
-    author_email="ymenghank@gmail.com",
-    description="A Pokemon Go Battle Simulator wrapped in Python",
+    version="0.8.1",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/ymenghank/GoBattleSim-Python",
     
     classifiers=[
         "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: MIT License",
+        "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
         "Development Status :: 4 - Beta"
     ],
 

@@ -12,10 +12,8 @@ Tools to play around with [GoBattleSim-Engine](https://github.com/biowpn/GoBattl
 
 ## Installing
 
-`git clone` the repository and install:
-
 ```
-pip install -e .
+pip install gobattlesim
 ```
 
 I'll introduce each module by a step-by-step example of generating a **kanto starter battle matrix** from raw GAME MASTER.

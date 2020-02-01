@@ -54,7 +54,9 @@ def convertPokemonName(base_name, suffix):
             return makeFormeName(base_name, "Confined", None)
 
         elif base_name.startswith("Kyurem"):
-            return makeFormeName(base_name, "", None)
+            name = makeFormeName(base_name, "", None)
+            name = " ".join(name.split(" ")[::-1])
+            return name
 
         elif base_name.startswith("Lycanroc"):
             return makeFormeName(base_name, "Midday", "Forme")
@@ -186,7 +188,7 @@ def convertPokemon(smogon_pkm, fmoves, cmoves):
                 continue
 
             pkmNew['name'] = fullName.lower()
-            pkmNew['label'] = toTitleCase(fullName)
+            pkmNew['label'] = fullName
 
             baseStats = convertStats(pkmform)
             pkmNew['baseAtk'] = baseStats['baseAtk']

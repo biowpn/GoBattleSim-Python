@@ -18,12 +18,12 @@ def makeFormeName(org_name, default_forme_name, forme_category_name=None):
         if len(segs) == 1:
             return "{} ({} {})".format(base_name, default_forme_name, forme_category_name)
         else:
-            return "{} ({} {})".format(base_name, segs[1], forme_category_name)
+            return "{} ({} {})".format(base_name, '-'.join(segs[1:]), forme_category_name)
     else:
         if len(segs) == 1:
             return "{} {}".format(base_name, default_forme_name)
         else:
-            return "{} {}".format(base_name, segs[1])
+            return "{} {}".format(base_name, '-'.join(segs[1:]))
 
 
 def convertPokemonName(org_name):
@@ -36,10 +36,39 @@ def convertPokemonName(org_name):
     segs = org_name.split('-')
     base_name = segs[0]
 
+    if "Mega" in segs:
+        if len(segs) >= 3:
+            # Charizard-Mega-X
+            return "Mega {} {}".format(base_name, ' '.join(segs[2:]))
+        else:
+            return "Mega {}".format(base_name)
+
+    if "Primal" in segs:
+        return "Primal {}".format(base_name)
+
+    if "Alola" in segs:
+        if len(segs) >= 3:
+            # Raticate-Alola-Totem
+            return "Alolan {} {}".format(' '.join(segs[2:]), base_name)
+        else:
+            return "Alolan {}".format(base_name)
+
     if base_name == "Aegislash":
         return makeFormeName(org_name, "Shield", "Forme")
 
     if base_name == "Arceus":
+        return ' '.join(segs)
+
+    if base_name == "Basculin":
+        return ' '.join(segs)
+
+    if base_name == "Castform":
+        if len(segs) == 1:
+            return base_name
+        else:
+            return "{} ({})".format(base_name, segs[1])
+
+    if base_name == "Cherrim":
         return ' '.join(segs)
 
     if base_name == "Darmanitan":
@@ -47,6 +76,12 @@ def convertPokemonName(org_name):
 
     if base_name == "Deoxys":
         return makeFormeName(org_name, "Normal", "Forme")
+
+    if base_name == "Eevee":
+        return ' '.join(segs)
+
+    if base_name == "Genesect":
+        return ' '.join(segs)
 
     if base_name == "Giratina":
         return makeFormeName(org_name, "Altered", "Forme")
@@ -57,17 +92,29 @@ def convertPokemonName(org_name):
     if base_name == "Hoopa":
         return makeFormeName(org_name, "Confined")
 
+    if base_name == "Keldeo":
+        return ' '.join(segs)
+
     if base_name == "Kyurem":
         return ' '.join(segs[::-1])
 
     if base_name == "Lycanroc":
         return makeFormeName(org_name, "Midday", "Forme")
 
+    if base_name == "Meloetta":
+        return makeFormeName(org_name, "Aria", "Forme")
+
     if base_name == "Minior":
         return makeFormeName(org_name, "Core", "Forme")
 
+    if base_name == "Necrozma":
+        return ' '.join(segs)
+
     if base_name == "Oricorio":
         return makeFormeName(org_name, "Baile", "Style")
+
+    if base_name == "Pikachu":
+        return ' '.join(segs)
 
     if base_name == "Pumpkaboo":
         return makeFormeName(org_name, "Average", "Size")
@@ -90,6 +137,9 @@ def convertPokemonName(org_name):
     if base_name == "Tornadus":
         return makeFormeName(org_name, "Incarnate", "Forme")
 
+    if base_name == "Vivillon":
+        return ' '.join(segs)
+
     if base_name == "Wishiwashi":
         return makeFormeName(org_name, "Solo", "Forme")
 
@@ -101,26 +151,6 @@ def convertPokemonName(org_name):
             return base_name
         else:
             return makeFormeName(org_name, "Base", "Forme")
-
-    if len(segs) == 1:
-        return org_name
-
-    if "Mega" in segs:
-        if len(segs) >= 3:
-            # Charizard-Mega-X
-            return "Mega {} {}".format(base_name, ' '.join(segs[2:]))
-        else:
-            return "Mega {}".format(base_name)
-
-    if "Primal" in segs:
-        return "Primal {}".format(base_name)
-
-    if "Alola" in segs:
-        if len(segs) >= 3:
-            # Raticate-Alola-Totem
-            return "Alolan {} {}".format(' '.join(segs[2:]), base_name)
-        else:
-            return "Alolan {}".format(base_name)
 
     return org_name
 

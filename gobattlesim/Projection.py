@@ -11,100 +11,118 @@ def toTitleCase(string):
     return ' '.join([w.capitalize() for w in string.split()])
 
 
-def makeFormeName(base_name, default_form_name, form_type_name):
-    form_name = default_form_name
-    if '-' in base_name:
-        base_name, *form_name = base_name.split('-')
-        form_name = '-'.join(form_name)
-    if form_name and form_type_name:
-        return "{} ({} {})".format(base_name, form_name, form_type_name)
-    elif form_name:
-        return "{} {}".format(base_name, form_name)
+def makeFormeName(org_name, default_forme_name, forme_category_name=None):
+    segs = org_name.split('-')
+    base_name = segs[0]
+    if forme_category_name is not None:
+        if len(segs) == 1:
+            return "{} ({} {})".format(base_name, default_forme_name, forme_category_name)
+        else:
+            return "{} ({} {})".format(base_name, segs[1], forme_category_name)
     else:
-        return base_name
+        if len(segs) == 1:
+            return "{} {}".format(base_name, default_forme_name)
+        else:
+            return "{} {}".format(base_name, segs[1])
 
 
-def convertPokemonName(base_name, suffix):
+def convertPokemonName(org_name):
     '''
     Convert smogon pokemon name to GoBattleSim style pokemon name.
 
     Return the GBS style pokemon name.
     '''
 
-    if suffix == '':
-        if base_name.endswith("-Alola"):
-            return "Alolan {}".format(base_name[:-6])
+    segs = org_name.split('-')
+    base_name = segs[0]
 
-        elif base_name.startswith("Aegislash"):
-            return makeFormeName(base_name, "Shield", "Forme")
+    if base_name == "Aegislash":
+        return makeFormeName(org_name, "Shield", "Forme")
 
-        elif base_name.startswith("Darmanitan"):
-            return makeFormeName(base_name, "Standard", "Mode")
+    if base_name == "Arceus":
+        return ' '.join(segs)
 
-        elif base_name.startswith("Deoxys"):
-            return makeFormeName(base_name, "Normal", "Forme")
+    if base_name == "Darmanitan":
+        return makeFormeName(org_name, "Standard", "Mode")
 
-        elif base_name.startswith("Giratina"):
-            return makeFormeName(base_name, "Altered", "Forme")
+    if base_name == "Deoxys":
+        return makeFormeName(org_name, "Normal", "Forme")
 
-        elif base_name.startswith("Gourgeist"):
-            return makeFormeName(base_name, "Average", "Size")
+    if base_name == "Giratina":
+        return makeFormeName(org_name, "Altered", "Forme")
 
-        elif base_name.startswith("Hoopa"):
-            return makeFormeName(base_name, "Confined", None)
+    if base_name == "Gourgeist":
+        return makeFormeName(org_name, "Average", "Size")
 
-        elif base_name.startswith("Kyurem"):
-            name = makeFormeName(base_name, "", None)
-            name = " ".join(name.split(" ")[::-1])
-            return name
+    if base_name == "Hoopa":
+        return makeFormeName(org_name, "Confined")
 
-        elif base_name.startswith("Lycanroc"):
-            return makeFormeName(base_name, "Midday", "Forme")
+    if base_name == "Kyurem":
+        return ' '.join(segs[::-1])
 
-        elif base_name.startswith("Minior"):
-            return makeFormeName(base_name, "Core", "Forme")
+    if base_name == "Lycanroc":
+        return makeFormeName(org_name, "Midday", "Forme")
 
-        elif base_name.startswith("Oricorio"):
-            return makeFormeName(base_name, "Baile", "Style")
+    if base_name == "Minior":
+        return makeFormeName(org_name, "Core", "Forme")
 
-        elif base_name.startswith("Pumpkaboo"):
-            return makeFormeName(base_name, "Average", "Size")
+    if base_name == "Oricorio":
+        return makeFormeName(org_name, "Baile", "Style")
 
-        elif base_name.startswith("Rotom"):
-            return makeFormeName(base_name, "", None)
+    if base_name == "Pumpkaboo":
+        return makeFormeName(org_name, "Average", "Size")
 
-        elif base_name.startswith("Shaymin"):
-            return makeFormeName(base_name, "Land", "Forme")
+    if base_name == "Rotom":
+        return ' '.join(segs)
 
-        elif base_name.startswith("Thundurus") or base_name.startswith("Tornadus") or base_name.startswith("Landorus"):
-            return makeFormeName(base_name, "Incarnate", "Forme")
+    if base_name == "Shaymin":
+        return makeFormeName(org_name, "Land", "Forme")
 
-        elif base_name.startswith("Wishiwashi"):
-            return makeFormeName(base_name, "Solo", "Forme")
+    if base_name == "Silvally":
+        return ' '.join(segs)
 
-        elif base_name.startswith("Wormadam"):
-            return makeFormeName(base_name, "Plant", "Cloak")
+    if base_name == "Landorus":
+        return makeFormeName(org_name, "Incarnate", "Forme")
 
-        elif base_name.startswith("Zygarde"):
-            return makeFormeName(base_name, "", "Forme")
+    if base_name == "Thundurus":
+        return makeFormeName(org_name, "Incarnate", "Forme")
 
-        else:
+    if base_name == "Tornadus":
+        return makeFormeName(org_name, "Incarnate", "Forme")
+
+    if base_name == "Wishiwashi":
+        return makeFormeName(org_name, "Solo", "Forme")
+
+    if base_name == "Wormadam":
+        return makeFormeName(org_name, "Plant", "Cloak")
+
+    if base_name == "Zygarde":
+        if len(segs) == 1:
             return base_name
+        else:
+            return makeFormeName(org_name, "Base", "Forme")
 
-    elif suffix.startswith("Mega"):
-        if '-' in suffix:
-            return "Mega {} {}".format(base_name, suffix.split('-')[-1])
+    if len(segs) == 1:
+        return org_name
+
+    if "Mega" in segs:
+        if len(segs) >= 3:
+            # Charizard-Mega-X
+            return "Mega {} {}".format(base_name, ' '.join(segs[2:]))
         else:
             return "Mega {}".format(base_name)
 
-    elif suffix == "Primal":
+    if "Primal" in segs:
         return "Primal {}".format(base_name)
 
-    else:
-        if base_name == "Darmanitan":
-            return makeFormeName(base_name, "Standard", "Mode")
+    if "Alola" in segs:
+        if len(segs) >= 3:
+            # Raticate-Alola-Totem
+            return "Alolan {} {}".format(' '.join(segs[2:]), base_name)
         else:
-            return "{} ({} Forme)".format(base_name, suffix)
+            return "Alolan {}".format(base_name)
+
+    return org_name
 
 
 def rd(x):
@@ -177,32 +195,34 @@ def convertPokemon(smogon_pkm, fmoves, cmoves):
     pkm_list = []
 
     for pkm in smogon_pkm:
-        for pkmform in pkm['alts']:
-            pkmNew = {}
+        pkmNew = {}
 
-            fullName = convertPokemonName(pkm['name'], pkmform['suffix'])
+        fullName = convertPokemonName(pkm['name'])
 
-            if fullName.startswith("Arceus-"):
-                continue
-            if fullName.startswith("Silvally-"):
-                continue
+        if fullName.startswith("Arceus-"):
+            continue
+        if fullName.startswith("Silvally-"):
+            continue
 
-            pkmNew['name'] = fullName.lower()
-            pkmNew['label'] = fullName
+        pkmNew['name'] = fullName.lower()
+        pkmNew['label'] = fullName
+        if "oob" in pkm:
+            if pkm["oob"] is not None and "dex_number" in pkm["oob"]:
+                pkmNew['dex'] = pkm["oob"]["dex_number"]
 
-            baseStats = convertStats(pkmform)
-            pkmNew['baseAtk'] = baseStats['baseAtk']
-            pkmNew['baseDef'] = baseStats['baseDef']
-            pkmNew['baseStm'] = baseStats['baseStm']
+        baseStats = convertStats(pkm)
+        pkmNew['baseAtk'] = baseStats['baseAtk']
+        pkmNew['baseDef'] = baseStats['baseDef']
+        pkmNew['baseStm'] = baseStats['baseStm']
 
-            pkmform['types'].append('None')
-            pkmNew['pokeType1'] = pkmform['types'][0].lower()
-            pkmNew['pokeType2'] = pkmform['types'][1].lower()
+        pkm['types'].append('None')
+        pkmNew['pokeType1'] = pkm['types'][0].lower()
+        pkmNew['pokeType2'] = pkm['types'][1].lower()
 
-            pkmNew['fastMoves'] = convertMoves(pkm['learnset'], fmoves)
-            pkmNew['chargedMoves'] = convertMoves(pkm['learnset'], cmoves)
+        pkmNew['fastMoves'] = convertMoves(pkm['learnset'], fmoves)
+        pkmNew['chargedMoves'] = convertMoves(pkm['learnset'], cmoves)
 
-            pkm_list.append(pkmNew)
+        pkm_list.append(pkmNew)
 
     return pkm_list
 

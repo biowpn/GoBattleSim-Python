@@ -80,6 +80,9 @@ def convertPokemonName(org_name):
     if base_name == "Eevee":
         return ' '.join(segs)
 
+    if base_name == "Eiscue":
+        return makeFormeName(org_name, "Ice", "Face")
+
     if base_name == "Genesect":
         return ' '.join(segs)
 
@@ -137,6 +140,9 @@ def convertPokemonName(org_name):
     if base_name == "Tornadus":
         return makeFormeName(org_name, "Incarnate", "Forme")
 
+    if base_name == "Toxtricity":
+        return makeFormeName(org_name, "Amped", "Forme")
+
     if base_name == "Vivillon":
         return ' '.join(segs)
 
@@ -145,6 +151,12 @@ def convertPokemonName(org_name):
 
     if base_name == "Wormadam":
         return makeFormeName(org_name, "Plant", "Cloak")
+
+    if base_name == "Zacian":
+        return ' '.join(segs)
+
+    if base_name == "Zamazenta":
+        return ' '.join(segs)
 
     if base_name == "Zygarde":
         if len(segs) == 1:
@@ -227,6 +239,13 @@ def convertPokemon(smogon_pkm, fmoves, cmoves):
     for pkm in smogon_pkm:
         pkmNew = {}
 
+        pkmNew['dex'] = 0
+        if "oob" in pkm and pkm["oob"] is not None and "dex_number" in pkm["oob"]:
+            pkmNew['dex'] = pkm["oob"]["dex_number"]
+        if pkmNew['dex'] < 0:
+            # Non-official Pokemon
+            continue
+
         fullName = convertPokemonName(pkm['name'])
 
         if fullName.startswith("Arceus-"):
@@ -236,9 +255,6 @@ def convertPokemon(smogon_pkm, fmoves, cmoves):
 
         pkmNew['name'] = fullName.lower()
         pkmNew['label'] = fullName
-        if "oob" in pkm:
-            if pkm["oob"] is not None and "dex_number" in pkm["oob"]:
-                pkmNew['dex'] = pkm["oob"]["dex_number"]
 
         baseStats = convertStats(pkm)
         pkmNew['baseAtk'] = baseStats['baseAtk']
@@ -269,8 +285,8 @@ def leftJoin(left, right, on="name"):
 def main():
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("smogon_file",
-                        help="path to smogon pokemon data file in json")
+    parser.add_argument("smogon_file", nargs='+',
+                        help="path to smogon pokemon data JSON file(s)")
     parser.add_argument("-c", "--config", default="./GBS.json",
                         help="path to GBS setting")
     parser.add_argument("--join",
@@ -281,8 +297,10 @@ def main():
                         help="output file path")
     args = parser.parse_args()
 
-    with open(args.smogon_file) as F:
-        smogon_pkm = json.load(F)
+    smogon_pkm = []
+    for fp in args.smogon_file:
+        with open(fp) as F:
+            smogon_pkm.extend(json.load(F))
 
     with open(args.config) as F:
         GBSData = json.load(F)
